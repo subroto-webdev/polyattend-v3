@@ -9,6 +9,7 @@ export function TeacherSessions() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [attendance, setAttendance] = useState([]);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     api.get('/sessions').then(r => setSessions(r.data.sessions))
@@ -19,6 +20,26 @@ export function TeacherSessions() {
     setSelected(s);
     const res = await api.get(`/attendance/session/${s._id}`);
     setAttendance(res.data.attendance);
+  };
+
+  // FEATURE: delete a past session (and its attendance records) directly
+  // from the list. Active sessions can't be deleted — the backend enforces
+  // that too, but we check here first to avoid a pointless round-trip and
+  // to keep the delete button visually disabled while a session is live.
+  const deleteSession = async (e, s) => {
+    e.stopPropagation(); // don't trigger viewSession() on the row
+    if (!window.confirm(`"${s.subjectId?.name || 'এই session'}" — ${new Date(s.date).toLocaleDateString('en-BD')} সম্পূর্ণভাবে মুছে ফেলবেন? এর attendance-ও মুছে যাবে, এটি ফেরত আনা যাবে না।`)) return;
+    setDeletingId(s._id);
+    try {
+      await api.delete(`/sessions/${s._id}`);
+      setSessions(prev => prev.filter(x => x._id !== s._id));
+      if (selected?._id === s._id) setSelected(null);
+      toast.success('Session মুছে ফেলা হয়েছে');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete করতে সমস্যা হয়েছে');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (loading) return <div className="loading"><div className="spinner" /></div>;
@@ -32,9 +53,20 @@ export function TeacherSessions() {
       <div className="page" style={{ paddingTop: 8 }}>
         {selected ? (
           <>
-            <button className="btn-secondary btn-sm mb-3" onClick={() => setSelected(null)}>
-              <Icon name="chevronLeft" size={14} /> Back
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <button className="btn-secondary btn-sm" onClick={() => setSelected(null)}>
+                <Icon name="chevronLeft" size={14} /> Back
+              </button>
+              <button
+                className="btn-secondary btn-sm"
+                onClick={(e) => deleteSession(e, selected)}
+                disabled={deletingId === selected._id}
+                style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)' }}
+                title="এই session ও তার attendance মুছে ফেলুন"
+              >
+                {deletingId === selected._id ? <div className="spinner spinner-sm" /> : <><Icon name="trash" size={14} /> Delete</>}
+              </button>
+            </div>
             <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 14, marginBottom: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{selected.subjectId?.name}</div>
               <div style={{ fontSize: 13, color: 'var(--txt2)' }}>
@@ -94,9 +126,20 @@ export function TeacherSessions() {
                           <div className="item-title">{s.subjectId?.name} — Sem {s.semester} {s.section}</div>
                           <div className="item-sub">{s.departmentId?.name} • {new Date(s.date).toLocaleDateString('en-BD')}</div>
                         </div>
-                        <div className="item-right">
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>{s.presentCount}/{s.totalStudents}</div>
-                          <div className="text-xs text-muted">{s.totalStudents ? Math.round(s.presentCount / s.totalStudents * 100) : 0}%</div>
+                        <div className="item-right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600 }}>{s.presentCount}/{s.totalStudents}</div>
+                            <div className="text-xs text-muted">{s.totalStudents ? Math.round(s.presentCount / s.totalStudents * 100) : 0}%</div>
+                          </div>
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => deleteSession(e, s)}
+                            disabled={deletingId === s._id || s.status === 'active'}
+                            style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)', padding: '6px 8px' }}
+                            title={s.status === 'active' ? 'আগে Session End করুন' : 'এই session ও তার attendance মুছে ফেলুন'}
+                          >
+                            {deletingId === s._id ? <div className="spinner spinner-sm" /> : <Icon name="trash" size={14} />}
+                          </button>
                         </div>
                       </div>
                     ))}

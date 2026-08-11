@@ -204,7 +204,7 @@ export default function TeacherScanner() {
       // message fixes that.
       const name = err?.name || '';
       const msg2 = (err?.message || '').toLowerCase();
-      let msg = 'Camera চালু করতে সমস্যা হয়েছে';
+      let msg = '';
       if (name === 'NotAllowedError' || msg2.includes('permission') || msg2.includes('denied')) {
         msg = 'Camera permission দেওয়া হয়নি। Browser settings থেকে Camera permission চালু করে আবার চেষ্টা করুন।';
       } else if (name === 'NotFoundError' || msg2.includes('notfounderror')) {
@@ -227,12 +227,27 @@ export default function TeacherScanner() {
     processingRef.current = false;
   };
 
+  // FIX (responsiveness): previously this did `await stopScanner()` BEFORE
+  // calling the end-session API. stopScanner() has to wait for the camera
+  // hardware to fully release (html5QrRef.current.stop()), which can take a
+  // noticeable moment on real devices — and the API call, and therefore the
+  // whole "session ended" UI update, was blocked behind that. Now the
+  // end-session API call fires immediately, and the camera is released in
+  // the background (fire-and-forget, not awaited) at the same time. The
+  // user sees the session end right away regardless of how long the camera
+  // teardown takes. stopScanner() already wraps its own work in try/catch,
+  // so not awaiting it here is safe — it can't throw an unhandled rejection.
   const endSession = async () => {
     if (!session) return;
     if (!window.confirm('Session শেষ করবেন? বাকি students absent হবে।')) return;
-    await stopScanner();
+
+    const sessionId = session._id;
+
+    // Release the camera in the background — don't block session-end on it.
+    stopScanner();
+
     try {
-      await api.put(`/sessions/${session._id}/end`);
+      await api.put(`/sessions/${sessionId}/end`);
       toast.success('Session শেষ হয়েছে!');
       setSession(null);
       setSelectedSubject(null);

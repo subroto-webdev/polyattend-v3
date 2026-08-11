@@ -97,7 +97,7 @@ export default function AdminHolidays() {
               <div className="form-group"><label className="form-label">Description</label><input className="form-input" placeholder="বিবরণ (ঐচ্ছিক)" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <button type="button" className="btn-secondary w-full" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Add Holiday</button>
+                <button type="submi t" className="btn-primary">Add Holiday</button>
               </div>
             </form>
           </div>

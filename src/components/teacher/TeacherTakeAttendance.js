@@ -12,7 +12,9 @@ export default function TeacherTakeAttendance() {
   const [attendance, setAttendance] = useState({});
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false); // used only by startSession (subject-select screen)
+  const [savingOnly, setSavingOnly] = useState(false); // Attendance Save button — independent of endingOnly
+  const [endingOnly, setEndingOnly] = useState(false); // Session End button — independent of savingOnly
   const [step, setStep] = useState('select'); // select | mark | done
   const [search, setSearch] = useState('');
   const touchedRef = useRef(new Set());
@@ -148,33 +150,37 @@ export default function TeacherTakeAttendance() {
   // save periodically, without being forced to close the session yet.
   const saveAttendanceOnly = async () => {
     if (!session) return;
-    setSaving(true);
+    setSavingOnly(true);
     try {
       const attendanceList = students.map(s => ({ studentId: s._id, status: attendance[s._id]?.status || 'absent' }));
       await api.post('/attendance/manual', { sessionId: session._id, attendanceList });
       toast.success('Attendance সংরক্ষণ হয়েছে (Session এখনও চলছে)');
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
-    finally { setSaving(false); }
+    finally { setSavingOnly(false); }
   };
 
-  // FEATURE: explicit "End Session" — saves whatever is currently marked one
-  // last time, then closes the session. After this, the session can no
-  // longer accept attendance (neither manual marks here, nor QR/self
-  // check-in) — a brand new session has to be started for the next class.
+  // FEATURE: explicit "End Session" — closes the session only.
+  // After this, the session can no longer accept attendance (neither manual
+  // marks here, nor QR/self check-in) — a brand new session has to be
+  // started for the next class.
+  //
+  // CHANGED: endSession() now ONLY ends the session — it no longer saves
+  // attendance first. Saving and ending are fully separate actions: use the
+  // "Attendance Save করুন" button to save, and this only closes the session.
+  // If the teacher wants their latest marks saved before ending, they need
+  // to tap Save first, then End. Uses its own endingOnly loading flag so it
+  // never visually affects the Save button.
   const endSession = async () => {
     if (!session) return;
-    setSaving(true);
+    setEndingOnly(true);
     try {
-      const attendanceList = students.map(s => ({ studentId: s._id, status: attendance[s._id]?.status || 'absent' }));
-      await api.post('/attendance/manual', { sessionId: session._id, attendanceList });
       await api.put(`/sessions/${session._id}/end`);
-      toast.success('Attendance সংরক্ষিত ও Session শেষ হয়েছে!');
+      toast.success('Session শেষ হয়েছে!');
       setStep('done');
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
-    finally { setSaving(false); }
+    finally { setEndingOnly(false); }
   };
-  // Kept as an alias so nothing else in this file needs to change.
-  const saveAndEndSession = endSession;
+
 
   const resetAll = () => {
     setSession(null); setSelectedSubject(null);
@@ -243,11 +249,11 @@ export default function TeacherTakeAttendance() {
           {/* Quick-access Save in the top bar, in addition to the full action bar at the bottom */}
           <button
             onClick={saveAttendanceOnly}
-            disabled={saving || students.length === 0}
+            disabled={savingOnly || endingOnly || students.length === 0}
             title="Session চালু রেখে এখন পর্যন্ত মার্ক করা attendance সংরক্ষণ করুন"
             className="flex items-center gap-1 rounded-lg bg-brand-50 hover:bg-brand-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-brand-700 text-xs font-semibold px-2.5 py-1.5 transition-colors"
           >
-            {saving ? <div className="spinner spinner-sm" /> : <Icon name="check" size={12} />}
+            {savingOnly ? <div className="spinner spinner-sm" /> : <Icon name="check" size={12} />}
             Save
           </button>
         </div>
@@ -342,8 +348,8 @@ export default function TeacherTakeAttendance() {
                 <button
                   onClick={() => toggleStudent(s._id)}
                   className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold border transition-colors ${status === 'present'
-                      ? 'bg-brand-600 border-brand-600 text-white'
-                      : 'bg-white border-slate-200 text-slate-400 hover:border-brand-300 hover:text-brand-600'
+                    ? 'bg-brand-600 border-brand-600 text-white'
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-brand-300 hover:text-brand-600'
                     }`}
                 >
                   P
@@ -351,8 +357,8 @@ export default function TeacherTakeAttendance() {
                 <button
                   onClick={() => setStatus(s._id, 'absent')}
                   className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold border transition-colors ${status === 'absent'
-                      ? 'bg-red-500 border-red-500 text-white'
-                      : 'bg-white border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500'
+                    ? 'bg-red-500 border-red-500 text-white'
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500'
                     }`}
                 >
                   A
@@ -364,25 +370,35 @@ export default function TeacherTakeAttendance() {
       </div>
 
       {/*
-        Save/End button — now a normal in-flow element right after the last student row,
-        not sticky/fixed. It naturally moves down as more students are added, and can
-        never end up hidden behind the app's fixed .bottom-nav.
+        Save/End action bar — restored to the original two-button, side-by-side
+        layout. Save and End are fully independent actions with their OWN
+        loading state (savingOnly / endingOnly) so clicking one never shows a
+        spinner or disables the other — previously both buttons shared the
+        single `saving` flag, which made it look like clicking End was also
+        "doing something" to Save.
+        - Save: writes attendance, session stays open.
+        - End: only closes the session (PUT /sessions/:id/end) — does NOT
+          save attendance. If unsaved marks exist, save first.
       */}
       <div className="bg-white border-t border-slate-200 px-4 py-3 flex gap-2">
         <button
           onClick={saveAttendanceOnly}
-          disabled={saving || students.length === 0}
+          disabled={savingOnly || endingOnly || students.length === 0}
           className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 hover:bg-brand-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-brand-700 text-sm font-semibold py-2.5 transition-colors"
         >
-          {saving ? <div className="spinner spinner-sm" /> : <Icon name="check" size={14} />}
+          {savingOnly ? <div className="spinner spinner-sm" /> : <Icon name="check" size={14} />}
           Attendance Save করুন
         </button>
         <button
-          onClick={endSession}
-          disabled={saving || students.length === 0}
+          onClick={() => {
+            if (window.confirm('Session End করবেন? এটি শুধু session বন্ধ করবে, attendance Save করবে না — Save না করা থাকলে আগে Save বাটনে ক্লিক করুন।')) {
+              endSession();
+            }
+          }}
+          disabled={savingOnly || endingOnly || students.length === 0}
           className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 shadow-brand transition-colors"
         >
-          {saving ? <div className="spinner spinner-sm" /> : <Icon name="stop" size={14} />}
+          {endingOnly ? <div className="spinner spinner-sm" /> : <Icon name="stop" size={14} />}
           Session End করুন
         </button>
       </div>

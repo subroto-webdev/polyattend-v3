@@ -80,6 +80,7 @@ export default function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('subject');
   const [downloadingId, setDownloadingId] = useState(null); // `${id}-${format}`
+  const [deletingSessionId, setDeletingSessionId] = useState(null);
 
   // ── FIX (Requirement #3): search bars on every report tab ──────────────
   const [subjectSearch, setSubjectSearch] = useState('');
@@ -147,6 +148,23 @@ export default function AdminReports() {
     finally { setDownloadingId(null); }
   };
 
+  // FEATURE: admin can delete any session (and its attendance) directly
+  // from the Session Reports tab. Active sessions must be ended first —
+  // enforced by the backend, mirrored here to keep the button disabled.
+  const deleteSession = async (s) => {
+    if (!window.confirm(`"${s.subjectId?.name || 'এই session'}" — ${new Date(s.date).toLocaleDateString()} সম্পূর্ণভাবে মুছে ফেলবেন? এর attendance-ও মুছে যাবে, এটি ফেরত আনা যাবে না।`)) return;
+    setDeletingSessionId(s._id);
+    try {
+      await api.delete(`/sessions/${s._id}`);
+      setSessions(prev => prev.filter(x => x._id !== s._id));
+      toast.success('Session মুছে ফেলা হয়েছে');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete করতে সমস্যা হয়েছে');
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
   if (loading) return <div className="loading"><div className="spinner" /></div>;
 
   return (
@@ -157,8 +175,8 @@ export default function AdminReports() {
       </div>
 
       <div className="chips" style={{ background: 'none', border: 'none', padding: '0 0 16px 0' }}>
-        {[['subject','Subject Reports'],['session','Session Reports'],['student','Student Reports']].map(([k,l]) => (
-          <button key={k} className={`chip${tab===k?' active':''}`} onClick={() => setTab(k)}>{l}</button>
+        {[['subject', 'Subject Reports'], ['session', 'Session Reports'], ['student', 'Student Reports']].map(([k, l]) => (
+          <button key={k} className={`chip${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
 
@@ -205,7 +223,18 @@ export default function AdminReports() {
                       <div className="item-title">{s.subjectId?.name} — Group {s.section}</div>
                       <div className="item-sub">{new Date(s.date).toLocaleDateString()} • {s.presentCount}/{s.totalStudents}</div>
                     </div>
-                    <DownloadButtons id={s._id} endpoint={`/reports/class/${s._id}`} baseName={`session_report`} downloadingId={downloadingId} onDownload={download} />
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <DownloadButtons id={s._id} endpoint={`/reports/class/${s._id}`} baseName={`session_report`} downloadingId={downloadingId} onDownload={download} />
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={() => deleteSession(s)}
+                        disabled={deletingSessionId === s._id || s.status === 'active'}
+                        style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)' }}
+                        title={s.status === 'active' ? 'আগে Session End করুন' : 'এই session ও তার attendance মুছে ফেলুন'}
+                      >
+                        {deletingSessionId === s._id ? <div className="spinner spinner-sm" /> : <Icon name="trash" size={14} />}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
