@@ -5,6 +5,13 @@ import Icon from '@/components/common/Icon';
 import toast from 'react-hot-toast';
 import useSessionExitGuard from '@/hooks/useSessionExitGuard';
 
+// Roll (studentId) অনুযায়ী natural sort — যাতে "10" আসার আগে "2" আসে,
+// শুধু alphabetically "10" আগে "2" এর মতো ভুল না হয়।
+const sortByRoll = (list) =>
+  [...list].sort((a, b) =>
+    (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true, sensitivity: 'base' })
+  );
+
 export default function TeacherTakeAttendance() {
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -54,7 +61,9 @@ export default function TeacherTakeAttendance() {
       if (sess.shift) params.shift = sess.shift;
 
       const res = await api.get('/users', { params });
-      const stds = res.data.users || [];
+      // Roll (studentId) অনুযায়ী serial-এ সাজানো — attendance list-এ
+      // student-রা তাদের roll নম্বরের ক্রমে দেখাবে।
+      const stds = sortByRoll(res.data.users || []);
       setStudents(stds);
       // Load existing attendance
       const attRes = await api.get(`/attendance/session/${sess._id}`);
