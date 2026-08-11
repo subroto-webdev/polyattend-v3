@@ -204,7 +204,11 @@ export default function TeacherScanner() {
       // message fixes that.
       const name = err?.name || '';
       const msg2 = (err?.message || '').toLowerCase();
-      let msg = '';
+      let msg = null; // CHANGED: generic fallback message removed per request —
+      // for an unrecognized camera error, show nothing at all and just let
+      // the "Scanner চালু করুন" button reappear silently so the user can
+      // retry. Only the three specific, actionable cases below still show
+      // a message, since those tell the user something they can act on.
       if (name === 'NotAllowedError' || msg2.includes('permission') || msg2.includes('denied')) {
         msg = 'Camera permission দেওয়া হয়নি। Browser settings থেকে Camera permission চালু করে আবার চেষ্টা করুন।';
       } else if (name === 'NotFoundError' || msg2.includes('notfounderror')) {
@@ -212,8 +216,8 @@ export default function TeacherScanner() {
       } else if (name === 'NotReadableError' || msg2.includes('notreadableerror')) {
         msg = 'Camera অন্য app/ট্যাব ব্যবহার করছে। অন্য app বন্ধ করে আবার চেষ্টা করুন।';
       }
-      setCameraError(msg);
-      toast.error(msg);
+      setCameraError(msg); // null when unrecognized — no banner rendered, see cameraError ? ... below
+      if (msg) toast.error(msg); // no toast either when there's no message
     }
   };
 
