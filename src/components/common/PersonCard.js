@@ -108,7 +108,9 @@ export default function PersonCard({ person, subtitleFields, actions = [], onCli
       onMouseLeave={() => setHov(false)}
       style={{
         background: 'var(--bg)',
-        border: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderTop: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderRight: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderBottom: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
         borderLeft: `3px solid ${meta.color}`,
         borderRadius: 'var(--radius-lg)', padding: '14px 16px',
         display: 'flex', flexDirection: 'column', gap: 10,

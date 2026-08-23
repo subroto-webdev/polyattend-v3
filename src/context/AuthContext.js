@@ -9,15 +9,10 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.get('/auth/me')
-        .then(res => setUser(res.data.user))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    api.get('/auth/me')
+      .then(res => setUser(res.data.user))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {
@@ -28,20 +23,18 @@ export const AuthProvider = ({ children }) => {
     if (res.data.requiresOtp) {
       return { requiresOtp: true, email: res.data.email };
     }
-    localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
     return res.data.user;
   };
 
   const verifyLoginOtp = async (email, otp) => {
     const res = await api.post('/auth/verify-login-otp', { email, otp });
-    localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
     return res.data.user;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
+  const logout = async () => {
+    await api.post('/auth/logout').catch(() => {});
     setUser(null);
   };
 

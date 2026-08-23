@@ -18,9 +18,7 @@ export function generateToken(id) {
 export async function requireAuth(request, roles = null) {
   await dbConnect();
   try {
-    const authHeader = request.headers.get('authorization') || '';
-    let token;
-    if (authHeader.startsWith('Bearer')) token = authHeader.split(' ')[1];
+    const token = request.cookies.get('token')?.value;
     if (!token) {
       return { error: NextResponse.json({ success: false, message: 'Not authorized, no token' }, { status: 401 }) };
     }

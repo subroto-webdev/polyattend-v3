@@ -45,14 +45,21 @@ export async function POST(request) {
     await user.save();
 
     const token = generateToken(user._id);
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      token,
       user: {
         _id: user._id, name: user.name, email: user.email, role: user.role, shift: user.shift,
         studentId: user.studentId, departmentId: user.departmentId, departmentCode: user.departmentCode,
         semester: user.semester, section: user.section, subjectId: user.subjectId,
       },
     });
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    });
+    return response;
   } catch (error) { return errorResponse(error); }
 }

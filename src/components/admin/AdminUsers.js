@@ -55,7 +55,9 @@ function UserCard({ user, onToggle, onDelete, isSelf, idx }) {
       onMouseLeave={() => setHov(false)}
       style={{
         background: 'var(--bg)',
-        border: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderTop: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderRight: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
+        borderBottom: `1px solid ${hov ? meta.color + '55' : 'var(--border)'}`,
         borderLeft: `3px solid ${meta.color}`,
         borderRadius: 14,
         padding: '14px 16px',

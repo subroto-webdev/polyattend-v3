@@ -4,14 +4,11 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
   timeout: 15000,
+  withCredentials: true, // cookie automatically পাঠাবে প্রতিটা request-এ
   headers: { 'Content-Type': 'application/json' },
 });
 
 api.interceptors.request.use(config => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
   // When sending FormData (file upload), the instance-level default
   // 'Content-Type: application/json' header conflicts with it —
   // this causes FormData to not serialize properly as multipart and
@@ -33,7 +30,6 @@ api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
       if (!isPublicPath()) {
         window.location.href = '/login';
       }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 import sendEmail from '@/lib/sendEmail';
@@ -19,7 +20,7 @@ const TWO_FA_ENABLED = false;
 const REQUIRES_2FA = TWO_FA_ENABLED ? ['admin', 'subAdmin', 'semesterAdmin'] : [];
 
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 export async function POST(request) {
@@ -81,14 +82,21 @@ export async function POST(request) {
     }
 
     const token = generateToken(user._id);
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      token,
       user: {
         _id: user._id, name: user.name, email: user.email, role: user.role, shift: user.shift,
         studentId: user.studentId, departmentId: user.departmentId, departmentCode: user.departmentCode,
         semester: user.semester, section: user.section, subjectId: user.subjectId,
       },
     });
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    });
+    return response;
   } catch (error) { return errorResponse(error); }
 }
