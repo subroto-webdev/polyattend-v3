@@ -16,54 +16,54 @@
   /* Brand */
   --primary: #16a34a;
   --primary-dark: #15803d;
-  --primary-light: #dcfce7;
+  --primary-light: rgba(22, 163, 74, 0.16);
   --primary-mid: #22c55e;
   --primary-glow: rgba(22, 163, 74, 0.18);
 
   /* Accents */
   --accent: #f59e0b;
-  --accent-light: #fef3c7;
-  --danger: #ef4444;
-  --danger-light: #fee2e2;
-  --info: #3b82f6;
-  --info-light: #dbeafe;
-  --success: #16a34a;
-  --success-light: #dcfce7;
-  --purple: #8b5cf6;
-  --purple-light: #ede9fe;
+  --accent-light: rgba(245, 158, 11, 0.16);
+  --danger: #f43f5e;
+  --danger-light: rgba(244, 63, 94, 0.14);
+  --info: #6366f1;
+  --info-light: rgba(99, 102, 241, 0.16);
+  --success: #22c55e;
+  --success-light: rgba(34, 197, 94, 0.16);
+  --purple: #a78bfa;
+  --purple-light: rgba(167, 139, 250, 0.16);
 
-  /* Neutral surfaces */
-  --bg: #ffffff;
-  --bg2: #f8fafc;
-  --bg3: #f1f5f9;
-  --bg4: #e2e8f0;
+  /* Neutral surfaces — dark theme, matching the Teacher dashboard palette */
+  --bg: #12141A;
+  --bg2: #0A0B0F;
+  --bg3: #1A1D26;
+  --bg4: #242938;
 
   /* Text */
-  --txt: #0f172a;
-  --txt2: #475569;
-  --txt3: #94a3b8;
+  --txt: #F1F5F9;
+  --txt2: #94A3B8;
+  --txt3: #64748B;
 
   /* Borders */
-  --border: #e2e8f0;
-  --border2: #cbd5e1;
+  --border: #242938;
+  --border2: #2E3444;
 
   /* Shape */
   --radius: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
 
-  /* Shadows */
-  --shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.13), 0 8px 24px rgba(0, 0, 0, 0.07);
+  /* Shadows — deeper/darker so cards still read as "lifted" on a dark page */
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
 
   --sidebar-w: 260px;
 }
 
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--bg3);
+  background: #0A0B0F;
   color: var(--txt);
   font-size: 14px;
   line-height: 1.6;
@@ -92,7 +92,7 @@ body {
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: #0f172a;
+  background: #12141A;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -110,6 +110,50 @@ body {
   gap: 12px;
   padding: 22px 18px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ── Animated glowing gradient frame around the logo ──────────────
+   A rotating conic-gradient ring behind a solid inner panel, clipped
+   to a rounded rect — gives the sidebar header a premium, "alive"
+   accent without touching the rest of the dark theme. The ring color
+   sweeps through the brand green into blue/purple so it reads as a
+   deliberate accent rather than a random rainbow. */
+.sidebar-logo-frame {
+  position: relative;
+  margin: 14px 14px 4px;
+  border-radius: 16px;
+  padding: 1.5px;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 6px 22px rgba(22, 163, 74, 0.16), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-logo-frame::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(from 0deg,
+    var(--primary) 0deg,
+    #22c55e 70deg,
+    #38bdf8 150deg,
+    #a78bfa 220deg,
+    var(--primary-dark) 290deg,
+    var(--primary) 360deg);
+  animation: sidebarFrameSpin 7s linear infinite;
+  z-index: 0;
+}
+
+@keyframes sidebarFrameSpin {
+  to { transform: rotate(360deg); }
+}
+
+.sidebar-logo-frame .sidebar-logo {
+  position: relative;
+  z-index: 1;
+  background: #12141A;
+  border-radius: 14.5px;
+  border-bottom: none;
+  padding: 16px 16px;
 }
 
 .sidebar-logo-icon {
@@ -237,9 +281,39 @@ body {
   border-radius: 20px;
 }
 
+.sidebar-footer-frame {
+  position: relative;
+  margin: 4px 14px 14px;
+  border-radius: 16px;
+  padding: 1.5px;
+  overflow: hidden;
+  isolation: isolate;
+  flex-shrink: 0;
+  box-shadow: 0 6px 22px rgba(22, 163, 74, 0.16), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-footer-frame::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(from 0deg,
+    var(--primary) 0deg,
+    #22c55e 70deg,
+    #38bdf8 150deg,
+    #a78bfa 220deg,
+    var(--primary-dark) 290deg,
+    var(--primary) 360deg);
+  animation: sidebarFrameSpin 7s linear infinite;
+  z-index: 0;
+}
+
 .sidebar-footer {
-  padding: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  position: relative;
+  z-index: 1;
+  background: #12141A;
+  border-radius: 14.5px;
+  border-top: none;
+  padding: 12px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -312,7 +386,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #0f172a;
+  background: #12141A;
   border-bottom: none;
   position: sticky;
   top: 0;
@@ -330,10 +404,36 @@ body {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+.top-nav-logo-frame {
+  position: relative;
+  border-radius: 10px;
+  padding: 1.5px;
+  overflow: hidden;
+  isolation: isolate;
+  flex-shrink: 0;
+}
+
+.top-nav-logo-frame::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(from 0deg,
+    var(--primary) 0deg,
+    #22c55e 70deg,
+    #38bdf8 150deg,
+    #a78bfa 220deg,
+    var(--primary-dark) 290deg,
+    var(--primary) 360deg);
+  animation: sidebarFrameSpin 7s linear infinite;
+  z-index: 0;
+}
+
 .top-nav-logo-icon {
+  position: relative;
+  z-index: 1;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: 8.5px;
   background: linear-gradient(135deg, var(--primary), var(--primary-mid));
   display: flex;
   align-items: center;
@@ -361,7 +461,7 @@ body {
 .bottom-nav {
   display: none;
   border-top: 1px solid var(--border);
-  background: #fff;
+  background: var(--bg);
   position: sticky;
   bottom: 0;
   z-index: 100;
@@ -929,7 +1029,7 @@ body {
 
 .stat-amber .stat-icon {
   background: var(--accent-light);
-  color: #92400e;
+  color: #fbbf24;
 }
 
 .stat-red .stat-val {
@@ -996,7 +1096,7 @@ body {
 
 .icon-amber {
   background: var(--accent-light);
-  color: #92400e;
+  color: #fbbf24;
 }
 
 .icon-red {
@@ -1063,7 +1163,7 @@ body {
 
 .tag-amber {
   background: var(--accent-light);
-  color: #92400e;
+  color: #fbbf24;
 }
 
 .tag-red {
@@ -1128,6 +1228,15 @@ body {
 
 .form-input::placeholder {
   color: var(--txt3);
+}
+
+/* Most browsers render a <select>'s popup <option> list using the OS's
+   native (light) styling, ignoring the select's own background/color —
+   so without this, every dropdown across the app would flash white
+   text-on-white or dark-on-dark against this dark theme. */
+.form-select option {
+  background: var(--bg2);
+  color: var(--txt);
 }
 
 .form-row {
@@ -1254,7 +1363,7 @@ body {
 }
 
 .btn-danger:hover {
-  background: #fca5a5;
+  background: rgba(244, 63, 94, 0.28);
   transform: translateY(-2px);
 }
 
@@ -1279,7 +1388,7 @@ body {
 }
 
 .btn-success:hover {
-  background: #bbf7d0;
+  background: rgba(34, 197, 94, 0.28);
   transform: translateY(-2px);
 }
 
@@ -1371,7 +1480,7 @@ body {
 }
 
 .warn-banner .info-text {
-  color: #92400e;
+  color: #fbbf24;
 }
 
 .danger-banner {
@@ -1923,7 +2032,7 @@ tbody tr:nth-child(n+7) {
 
 /* ===== PROFILE CARD ===== */
 .profile-card {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f2a1a 100%);
+  background: linear-gradient(135deg, #12141A 0%, #1a2332 50%, #0f2419 100%);
   border-radius: var(--radius-lg);
   padding: 22px;
   color: #fff;
@@ -2043,7 +2152,7 @@ input:checked+.toggle-slider:before {
 /* ===== SUBJECT CARD ===== */
 .subject-card {
   background: var(--bg);
-  border: 1.5px solid var(--border);
+  border: 2px solid var(--border2);
   border-radius: var(--radius-lg);
   padding: 16px 18px;
   cursor: pointer;

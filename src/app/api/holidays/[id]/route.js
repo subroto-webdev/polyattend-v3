@@ -8,8 +8,9 @@ export async function PUT(request, { params }) {
   const auth = await requireAuth(request, ['admin']);
   if (auth.error) return auth.error;
   try {
+    const { id } = await params;
     const body = await request.json();
-    const holiday = await Holiday.findByIdAndUpdate(params.id, body, { new: true });
+    const holiday = await Holiday.findByIdAndUpdate(id, body, { new: true });
     return NextResponse.json({ success: true, holiday });
   } catch (error) { return errorResponse(error, 400); }
 }
@@ -18,7 +19,8 @@ export async function DELETE(request, { params }) {
   const auth = await requireAuth(request, ['admin']);
   if (auth.error) return auth.error;
   try {
-    await Holiday.findByIdAndDelete(params.id);
+    const { id } = await params;
+    await Holiday.findByIdAndDelete(id);
     return NextResponse.json({ success: true, message: 'Holiday deleted' });
   } catch (error) { return errorResponse(error); }
 }

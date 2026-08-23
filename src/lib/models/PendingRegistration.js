@@ -23,6 +23,13 @@ const pendingRegistrationSchema = new mongoose.Schema({
   semester: { type: Number },
   section: { type: String },
 
+  // Links back to the StudentPreApproval entry this signup was validated
+  // against (Roll+Email+Code match). Marked used only once verify-email
+  // actually creates the real User — not here — so an abandoned signup
+  // (OTP never confirmed) doesn't burn the student's one-time pre-approval.
+  preApprovalId: { type: mongoose.Schema.Types.ObjectId, ref: 'StudentPreApproval' },
+  mobile: { type: String, trim: true },
+
   otp: { type: String, required: true },
   otpExpire: { type: Date, required: true },
 

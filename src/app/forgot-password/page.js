@@ -14,15 +14,15 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return toast.error('আপনার রেজিস্টার্ড ইমেইল এড্রেসটি দিন');
+    if (!email) return toast.error('Enter your registered email address');
 
     setLoading(true);
     try {
       const res = await api.post('/auth/forgot-password', { email });
-      toast.success(res.data?.message || 'রিসেট কোড ইমেইলে পাঠানো হয়েছে!');
+      toast.success(res.data?.message || 'Reset code sent to your email!');
       router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'কোড পাঠাতে ব্যর্থ হয়েছে। পুনরায় চেষ্টা করুন।');
+      toast.error(err.response?.data?.message || 'Failed to send code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           </div>
           <h1 className="auth-title">Forgot Password?</h1>
           <p className="auth-sub" style={{ lineHeight: 1.6 }}>
-            আপনার অ্যাকাউন্টের রেজিস্টার্ড ইমেইল দিন। আমরা পাসওয়ার্ড রিসেট করার জন্য একটি OTP পাঠাব।
+            Enter your account's registered email. We'll send an OTP to reset your password.
           </p>
         </div>
 
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
 
           <button type="submit" disabled={loading} className="btn-primary fp-submit" style={{ marginTop: 8 }}>
             {loading
-              ? <><div className="spinner spinner-sm" /> কোড পাঠানো হচ্ছে...</>
+              ? <><div className="spinner spinner-sm" /> Sending code...</>
               : 'Send OTP Code →'}
           </button>
         </form>

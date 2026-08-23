@@ -26,8 +26,9 @@ import './models/Session';
 import './models/Attendance';
 import './models/Holiday';
 import './models/Feedback';
-import './models/TeacherAssignment';
 import './models/PendingRegistration';
+import './models/AdminInvite';
+import './models/StudentPreApproval';
 import './models/Settings';
 
 const MONGODB_URI = process.env.MONGODB_URI;

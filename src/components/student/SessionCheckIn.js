@@ -43,7 +43,7 @@ export default function SessionCheckIn() {
       setAlreadyMarked(true);
       setMarkedBy('self');
     } catch (e) {
-      const msg = e?.response?.data?.message || 'সমস্যা হয়েছে, আবার চেষ্টা করুন';
+      const msg = e?.response?.data?.message || 'A problem occurred, please try again';
       toast.error(msg);
       // Session may have just ended, or teacher already marked it — re-sync.
       fetchActive();
@@ -81,13 +81,13 @@ export default function SessionCheckIn() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>
             {isActive
-              ? `${session.subjectId?.name || 'Class'} চলছে`
+              ? `${session.subjectId?.name || 'Class'} is ongoing`
               : 'Attendance'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--txt2)' }}>
             {isActive
               ? `${session.subjectId?.code || ''} • ${session.teacherId?.name || 'Teacher'}`
-              : 'এখন কোনো ক্লাস সেশন চলছে না'}
+              : 'No class session is running right now'}
           </div>
         </div>
       </div>
@@ -96,7 +96,7 @@ export default function SessionCheckIn() {
         {isDone ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600, color: 'var(--primary)' }}>
             <Icon name="check" size={16} />
-            আপনার attendance marked হয়ে গেছে{markedBy === 'self' ? ' (নিজে দিয়েছেন)' : ''}
+            Your attendance has been marked{markedBy === 'self' ? ' (marked by you)' : ''}
           </div>
         ) : (
           <button
@@ -106,7 +106,7 @@ export default function SessionCheckIn() {
             disabled={!isActive || marking}
           >
             <Icon name="check" size={16} />
-            {marking ? 'পাঠানো হচ্ছে...' : isActive ? 'আমি Present — Attendance দিন' : 'ক্লাস শুরু হলে বাটন Enable হবে'}
+            {marking ? 'Sending...' : isActive ? 'I am Present — Mark Attendance' : 'Button will enable when class starts'}
           </button>
         )}
       </div>

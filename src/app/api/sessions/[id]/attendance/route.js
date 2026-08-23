@@ -10,8 +10,9 @@ export async function PUT(request, { params }) {
   const auth = await requireAuth(request, ['teacher', 'admin']);
   if (auth.error) return auth.error;
   try {
+    const { id } = await params;
     const { attendanceUpdates } = await request.json();
-    const session = await Session.findById(params.id);
+    const session = await Session.findById(id);
     if (!session) return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
     if (session.teacherId.toString() !== auth.user._id.toString() && auth.user.role !== 'admin') {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });

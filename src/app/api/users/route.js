@@ -4,9 +4,9 @@ import { requireAuth, errorResponse } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/users - Admin/Teacher: get all users (list + search)
+// GET /api/users - Admin/Sub Admin/Semester Admin/Teacher: get all users (list + search)
 export async function GET(request) {
-  const auth = await requireAuth(request, ['admin', 'teacher']);
+  const auth = await requireAuth(request, ['admin', 'subAdmin', 'semesterAdmin', 'teacher']);
   if (auth.error) return auth.error;
   try {
     const { searchParams } = new URL(request.url);
@@ -39,6 +39,21 @@ export async function GET(request) {
 
     if (auth.user.role === 'teacher' && role === 'student') {
       filter.shift = auth.user.shift;
+    }
+
+    // SCOPE ENFORCEMENT: a Sub Admin only ever sees their own
+    // Department+Shift; a Semester Admin only their own
+    // Department+Shift+Semester. This overrides whatever the caller passed
+    // for these fields — a scoped admin cannot widen their own view by
+    // querying with a different departmentId/shift/semester.
+    if (auth.user.role === 'subAdmin') {
+      filter.departmentId = auth.user.departmentId;
+      filter.shift = auth.user.shift;
+    }
+    if (auth.user.role === 'semesterAdmin') {
+      filter.departmentId = auth.user.departmentId;
+      filter.shift = auth.user.shift;
+      filter.semester = auth.user.semester;
     }
 
     const users = await User.find(filter).select('-password').populate('departmentId', 'name code').sort({ createdAt: -1 });

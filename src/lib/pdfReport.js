@@ -203,13 +203,12 @@ export async function buildSessionReportPDF({ session, allStudents, presentMap }
     { key: 'name', label: 'Name', width: 150 },
     { key: 'status', label: 'Status', width: 60, align: 'center' },
     { key: 'method', label: 'Method', width: 70, align: 'center' },
-    { key: 'time', label: 'Scan Time', width: 90, align: 'center' },
+    { key: 'time', label: 'Marked Time', width: 90, align: 'center' },
   ];
 
   const methodLabel = (markedBy) => {
     switch (markedBy) {
       case 'self': return 'Self';
-      case 'qr': return 'QR Scan';
       case 'manual': return 'Manual';
       case 'search': return 'Search';
       default: return '-';
@@ -294,7 +293,7 @@ export async function buildStudentReportPDF({ student, bySubject, records }) {
       subject: r.subjectId?.name || '-',
       code: r.subjectId?.code || '-',
       status: r.status,
-      method: r.status !== 'present' ? '-' : r.markedBy === 'self' ? 'Self' : r.markedBy === 'qr' ? 'QR Scan' : r.markedBy === 'manual' ? 'Manual' : r.markedBy === 'search' ? 'Search' : '-',
+      method: r.status !== 'present' ? '-' : r.markedBy === 'self' ? 'Self' : r.markedBy === 'manual' ? 'Manual' : r.markedBy === 'search' ? 'Search' : '-',
     },
     cellColors: {
       status: r.status === 'present' ? GREEN : RED,

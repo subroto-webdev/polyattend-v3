@@ -12,12 +12,13 @@ export const dynamic = 'force-dynamic';
 // If a student has no Attendance record for this session when it ends,
 // they simply have no record (not present, not absent). Saving attendance
 // is entirely the responsibility of /api/attendance/manual (Save button)
-// and the student self-check-in / QR routes, called BEFORE this endpoint.
+// and the student self-check-in routes, called BEFORE this endpoint.
 export async function PUT(request, { params }) {
   const auth = await requireAuth(request, ['teacher', 'admin']);
   if (auth.error) return auth.error;
   try {
-    const session = await Session.findById(params.id);
+    const { id } = await params;
+    const session = await Session.findById(id);
     if (!session) return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
     if (session.teacherId.toString() !== auth.user._id.toString() && auth.user.role !== 'admin') {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });

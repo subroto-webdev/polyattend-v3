@@ -23,11 +23,25 @@ export async function GET(request, { params }) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
   try {
-    const student = await User.findById(params.studentId).populate('departmentId', 'name code');
+    const { studentId } = await params;
+    const student = await User.findById(studentId).populate('departmentId', 'name code');
     if (!student) return errorResponse(new Error('Student not found'), 404);
 
-    if (auth.user.role === 'student' && auth.user._id.toString() !== params.studentId) {
+    if (auth.user.role === 'student' && auth.user._id.toString() !== studentId) {
       return errorResponse(new Error('Not authorized'), 403);
+    }
+    // SCOPE ENFORCEMENT: Sub Admin/Semester Admin can only pull reports for
+    // students within their own Department+Shift(+Semester) — same rule as
+    // the subject/class reports above.
+    if (auth.user.role === 'subAdmin') {
+      if (student.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || student.shift !== auth.user.shift) {
+        return errorResponse(new Error('This student is outside your scope'), 403);
+      }
+    }
+    if (auth.user.role === 'semesterAdmin') {
+      if (student.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || student.shift !== auth.user.shift || student.semester !== auth.user.semester) {
+        return errorResponse(new Error('This student is outside your scope'), 403);
+      }
     }
 
     const records = await Attendance.find({ studentId: student._id })
@@ -103,7 +117,7 @@ export async function GET(request, { params }) {
     h2.eachCell(cell => Object.assign(cell, headerStyle));
     ws2.columns = [{ width: 16 }, { width: 24 }, { width: 14 }, { width: 12 }, { width: 14 }];
     records.forEach(r => {
-      const methodLabel = r.status !== 'present' ? '-' : r.markedBy === 'self' ? 'Self' : r.markedBy === 'qr' ? 'QR Scan' : r.markedBy === 'manual' ? 'Manual' : r.markedBy === 'search' ? 'Search' : '-';
+      const methodLabel = r.status !== 'present' ? '-' : r.markedBy === 'self' ? 'Self' : r.markedBy === 'manual' ? 'Manual' : r.markedBy === 'search' ? 'Search' : '-';
       const row = ws2.addRow([
         new Date(r.date).toLocaleDateString('en-BD'),
         r.subjectId?.name || '-', r.subjectId?.code || '-', r.status, methodLabel,

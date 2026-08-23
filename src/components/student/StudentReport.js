@@ -19,7 +19,7 @@ export default function StudentReport() {
       a.download = `attendance_${user.studentId || user.name}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
       a.click();
       window.URL.revokeObjectURL(url);
-      toast.success('Report download শুরু হয়েছে!');
+      toast.success('Report download started!');
     } catch (err) {
       toast.error(await getBlobErrorMessage(err));
     } finally {
@@ -31,7 +31,7 @@ export default function StudentReport() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">My Report</h2>
-        <p className="page-sub">Excel অথবা PDF ফরম্যাটে attendance report download করুন</p>
+        <p className="page-sub">Download your attendance report in Excel or PDF format</p>
       </div>
 
       <div className="card" style={{ padding: 24, textAlign: 'center' }}>
@@ -45,7 +45,7 @@ export default function StudentReport() {
         </div>
         <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Personal Attendance Report</h3>
         <p style={{ color: 'var(--txt2)', fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
-          আপনার সমস্ত subject-এর attendance, তারিখ ভিত্তিক রেকর্ড, এবং পরিসংখ্যান সহ Excel অথবা PDF রিপোর্ট।
+          An Excel or PDF report with attendance for all your subjects, date-wise records, and statistics.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, maxWidth: 300, margin: '0 auto 24px', textAlign: 'left' }}>
@@ -81,7 +81,7 @@ export default function StudentReport() {
       <div className="info-banner" style={{ marginTop: 16 }}>
         <Icon name="info" size={16} />
         <span className="info-text">
-          Report-এ দুটি sheet থাকবে: <strong>Subject Summary</strong> ও <strong>Date-wise Records</strong>।
+          The report will have two sheets: <strong>Subject Summary</strong> and <strong>Date-wise Records</strong>.
         </span>
       </div>
     </div>

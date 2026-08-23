@@ -27,7 +27,7 @@ const attendanceSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   status: { type: String, enum: ['present', 'absent'], default: 'present' },
   scannedAt: { type: Date },
-  markedBy: { type: String, enum: ['qr', 'manual', 'search', 'self'], default: 'qr' },
+  markedBy: { type: String, enum: ['manual', 'search', 'self'], default: 'manual' },
 }, { timestamps: true });
 
 attendanceSchema.index({ sessionId: 1, studentId: 1 }, { unique: true });

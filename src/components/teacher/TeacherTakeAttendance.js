@@ -5,8 +5,8 @@ import Icon from '@/components/common/Icon';
 import toast from 'react-hot-toast';
 import useSessionExitGuard from '@/hooks/useSessionExitGuard';
 
-// Roll (studentId) অনুযায়ী natural sort — যাতে "10" আসার আগে "2" আসে,
-// শুধু alphabetically "10" আগে "2" এর মতো ভুল না হয়।
+// Natural sort by Roll (studentId) — so that "2" comes before "10",
+// avoiding the plain alphabetical mistake where "10" comes before "2".
 const sortByRoll = (list) =>
   [...list].sort((a, b) =>
     (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true, sensitivity: 'base' })
@@ -57,12 +57,12 @@ export default function TeacherTakeAttendance() {
         semester: sess.semester,
         section: sess.section
       };
-      // session-এ shift থাকলে সেই shift-এর students আনো
+      // If the session has a shift, fetch students of that shift
       if (sess.shift) params.shift = sess.shift;
 
       const res = await api.get('/users', { params });
-      // Roll (studentId) অনুযায়ী serial-এ সাজানো — attendance list-এ
-      // student-রা তাদের roll নম্বরের ক্রমে দেখাবে।
+      // Sorted in order by Roll (studentId) — students will appear
+      // in the attendance list in roll-number order.
       const stds = sortByRoll(res.data.users || []);
       setStudents(stds);
       // Load existing attendance
@@ -75,12 +75,12 @@ export default function TeacherTakeAttendance() {
       stds.forEach(s => { attMap[s._id] = existing[s._id] || { status: 'absent', markedBy: null }; });
       setAttendance(attMap);
       touchedRef.current = new Set();
-    } catch (e) { console.error(e); toast.error('Students লোড করতে সমস্যা হয়েছে'); }
+    } catch (e) { console.error(e); toast.error('Problem loading Students'); }
   };
 
   // Background poll while marking: pulls the latest attendance from the
   // server (picks up students who self-check-in from their own dashboard,
-  // including WHO marked it — self vs teacher/QR) and merges it in — but
+  // including WHO marked it — self vs teacher) and merges it in — but
   // only for students the teacher hasn't touched themselves yet, so it
   // never overwrites an in-progress manual edit.
   const refreshFromServer = useCallback(async (sessionId) => {
@@ -115,7 +115,7 @@ export default function TeacherTakeAttendance() {
     // departmentId: null to the server and crash the whole attendance flow later.
     // Catch it here with a clear, actionable message instead.
     if (!subject?.departmentId) {
-      toast.error('এই subject-এর Department সেট নেই। "Subjects" পেজ থেকে এটি Edit করে Department দিন।');
+      toast.error('This subject has no Department set. Edit it from the "Subjects" page and set a Department.');
       return;
     }
     setSelectedSubject(subject);
@@ -130,8 +130,8 @@ export default function TeacherTakeAttendance() {
       setSession(sess);
       await loadStudentsForSession(sess);
       setStep('mark');
-      toast.success(`Session শুরু হয়েছে: ${subject.name}`);
-    } catch (err) { toast.error(err.response?.data?.message || 'Session শুরু করতে সমস্যা'); }
+      toast.success(`Session started: ${subject.name}`);
+    } catch (err) { toast.error(err.response?.data?.message || 'Problem starting Session'); }
     finally { setSaving(false); }
   };
 
@@ -163,19 +163,19 @@ export default function TeacherTakeAttendance() {
     try {
       const attendanceList = students.map(s => ({ studentId: s._id, status: attendance[s._id]?.status || 'absent' }));
       await api.post('/attendance/manual', { sessionId: session._id, attendanceList });
-      toast.success('Attendance সংরক্ষণ হয়েছে (Session এখনও চলছে)');
+      toast.success('Attendance saved (Session is still ongoing)');
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
     finally { setSavingOnly(false); }
   };
 
   // FEATURE: explicit "End Session" — closes the session only.
   // After this, the session can no longer accept attendance (neither manual
-  // marks here, nor QR/self check-in) — a brand new session has to be
+  // marks here, nor self check-in) — a brand new session has to be
   // started for the next class.
   //
   // CHANGED: endSession() now ONLY ends the session — it no longer saves
   // attendance first. Saving and ending are fully separate actions: use the
-  // "Attendance Save করুন" button to save, and this only closes the session.
+  // "Save Attendance" button to save, and this only closes the session.
   // If the teacher wants their latest marks saved before ending, they need
   // to tap Save first, then End. Uses its own endingOnly loading flag so it
   // never visually affects the Save button.
@@ -184,7 +184,7 @@ export default function TeacherTakeAttendance() {
     setEndingOnly(true);
     try {
       await api.put(`/sessions/${session._id}/end`);
-      toast.success('Session শেষ হয়েছে!');
+      toast.success('Session ended!');
       setStep('done');
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
     finally { setEndingOnly(false); }
@@ -217,7 +217,7 @@ export default function TeacherTakeAttendance() {
         <div className="w-20 h-20 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center mx-auto mb-5 shadow-brand">
           <Icon name="check" size={34} />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-1.5">Attendance সম্পন্ন!</h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-1.5">Attendance Complete!</h3>
         <p className="text-slate-500 mb-6">{selectedSubject?.name} — Group {selectedSubject?.section}</p>
         <div className="grid grid-cols-2 gap-3 mb-7">
           <div className="rounded-2xl bg-brand-50 border border-brand-100 py-4">
@@ -233,7 +233,7 @@ export default function TeacherTakeAttendance() {
           onClick={resetAll}
           className="w-full rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 shadow-brand transition-colors"
         >
-          নতুন Attendance নিন
+          Take New Attendance
         </button>
       </div>
     </div>
@@ -243,7 +243,7 @@ export default function TeacherTakeAttendance() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 shadow-soft">
         <button
-          onClick={() => { if (window.confirm('Session বাতিল করবেন?')) { api.put(`/sessions/${session?._id}/end`).catch(() => { }); resetAll(); } }}
+          onClick={() => { if (window.confirm('Cancel Session?')) { api.put(`/sessions/${session?._id}/end`).catch(() => { }); resetAll(); } }}
           className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
         >
           <Icon name="chevronLeft" size={18} />
@@ -259,7 +259,7 @@ export default function TeacherTakeAttendance() {
           <button
             onClick={saveAttendanceOnly}
             disabled={savingOnly || endingOnly || students.length === 0}
-            title="Session চালু রেখে এখন পর্যন্ত মার্ক করা attendance সংরক্ষণ করুন"
+            title="Save attendance marked so far while keeping the Session active"
             className="flex items-center gap-1 rounded-lg bg-brand-50 hover:bg-brand-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-brand-700 text-xs font-semibold px-2.5 py-1.5 transition-colors"
           >
             {savingOnly ? <div className="spinner spinner-sm" /> : <Icon name="check" size={12} />}
@@ -275,7 +275,7 @@ export default function TeacherTakeAttendance() {
           separate actions. */}
       <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-2 text-xs text-amber-800">
         <Icon name="alert" size={14} />
-        <span>Session চলছে — আগে Attendance Save করুন অথবা Session End করুন, তারপর অন্য পেজে যান।</span>
+        <span>Session is active — Save Attendance or End Session first, then go to another page.</span>
       </div>
 
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row gap-2.5">
@@ -287,7 +287,7 @@ export default function TeacherTakeAttendance() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="নাম বা Student ID দিয়ে খুঁজুন..."
+            placeholder="Search by name or Student ID..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-9 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition"
           />
           {search && (
@@ -304,30 +304,30 @@ export default function TeacherTakeAttendance() {
             onClick={() => markAll('present')}
             className="flex items-center gap-1.5 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold px-3 py-2.5 transition-colors"
           >
-            <Icon name="check" size={14} /> সবাই Present
+            <Icon name="check" size={14} /> All Present
           </button>
           <button
             onClick={() => markAll('absent')}
             className="flex items-center gap-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold px-3 py-2.5 transition-colors"
           >
-            <Icon name="x" size={14} /> সবাই Absent
+            <Icon name="x" size={14} /> All Absent
           </button>
         </div>
       </div>
 
       {search && (
         <div className="px-4 py-2 bg-white border-b border-slate-100 text-xs text-slate-500">
-          {filteredStudents.length} জন পাওয়া গেছে
+          {filteredStudents.length} found
         </div>
       )}
 
       <div className="flex-1 bg-white divide-y divide-slate-100">
         {students.length === 0 ? (
-          <div className="py-16 text-center text-slate-400">এই class-এ কোনো student নেই</div>
+          <div className="py-16 text-center text-slate-400">No students in this class</div>
         ) : filteredStudents.length === 0 ? (
           <div className="py-16 text-center text-slate-400">
             <Icon name="search" size={22} />
-            <p className="mt-2 text-sm">কোনো student পাওয়া যায়নি</p>
+            <p className="mt-2 text-sm">No student found</p>
           </div>
         ) : filteredStudents.map(s => {
           const rec = attendance[s._id];
@@ -345,7 +345,7 @@ export default function TeacherTakeAttendance() {
                     <span
                       className="tag tag-amber"
                       style={{ fontSize: 10, padding: '2px 6px', flexShrink: 0 }}
-                      title="এই student নিজেই নিজের attendance দিয়েছে — সে ক্লাসে সশরীরে আছে কিনা যাচাই করুন"
+                      title="This student marked their own attendance — verify they are physically present in class"
                     >
                       Self
                     </span>
@@ -396,11 +396,11 @@ export default function TeacherTakeAttendance() {
           className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 hover:bg-brand-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-brand-700 text-sm font-semibold py-2.5 transition-colors"
         >
           {savingOnly ? <div className="spinner spinner-sm" /> : <Icon name="check" size={14} />}
-          Attendance Save করুন
+          Save Attendance
         </button>
         <button
           onClick={() => {
-            if (window.confirm('Session End করবেন? এটি শুধু session বন্ধ করবে, attendance Save করবে না — Save না করা থাকলে আগে Save বাটনে ক্লিক করুন।')) {
+            if (window.confirm('End Session? This will only close the session, it will not Save attendance — click the Save button first if you haven\'t saved.')) {
               endSession();
             }
           }}
@@ -408,7 +408,7 @@ export default function TeacherTakeAttendance() {
           className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 shadow-brand transition-colors"
         >
           {endingOnly ? <div className="spinner spinner-sm" /> : <Icon name="stop" size={14} />}
-          Session End করুন
+          End Session
         </button>
       </div>
     </div>
@@ -417,8 +417,8 @@ export default function TeacherTakeAttendance() {
   return (
     <div className="page">
       <div className="page-header">
-        <h2 className="page-title">Attendance নিন</h2>
-        <p className="page-sub">কোন subject-এর attendance নেবেন?</p>
+        <h2 className="page-title">Take Attendance</h2>
+        <p className="page-sub">Which subject's attendance do you want to take?</p>
       </div>
 
       {subjects.length === 0 ? (
@@ -426,7 +426,7 @@ export default function TeacherTakeAttendance() {
           <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
             <Icon name="book" size={22} />
           </div>
-          <p className="text-slate-500">কোনো subject নেই। আগে &quot;Subjects&quot; থেকে subject তৈরি করুন।</p>
+          <p className="text-slate-500">No subjects yet. First create a subject from &quot;Subjects&quot;.</p>
         </div>
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
@@ -440,10 +440,10 @@ export default function TeacherTakeAttendance() {
               <div className="text-xs font-mono font-semibold text-brand-600 mb-1">{s.code}</div>
               <div className="font-semibold text-slate-900 mb-1">{s.name}</div>
               <div className="text-xs text-slate-500">
-                {s.departmentId?.name || <span className="text-amber-600">Department নেই</span>} • Sem {s.semester} • Group {s.section}
+                {s.departmentId?.name || <span className="text-amber-600">No Department</span>} • Sem {s.semester} • Group {s.section}
               </div>
               <div className="mt-3 flex items-center gap-1.5 text-brand-600 text-sm font-semibold">
-                <Icon name="play" size={14} /> Attendance শুরু করুন
+                <Icon name="play" size={14} /> Start Attendance
               </div>
             </button>
           ))}

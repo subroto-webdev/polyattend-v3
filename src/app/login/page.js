@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import Icon from '@/components/common/Icon';
+import Modal from '@/components/common/Modal';
 import api from '@/utils/api';
 
 
@@ -39,12 +40,20 @@ function TypeWriter({ text, delay = 0, speed = 40 }) {
 }
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, verifyLoginOtp } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [activeRole, setActiveRole] = useState('student');
+
+  // 2FA step (Super Admin / Sub Admin / Semester Admin only): after
+  // password verification, the account gets emailed an OTP and this page
+  // switches to asking for it instead of granting a token immediately.
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({ name: '', email: '', message: '' });
@@ -52,28 +61,49 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) return toast.error('Email ও Password দিন');
+    if (!form.email || !form.password) return toast.error('Enter Email and Password');
     setLoading(true);
     try {
-      const user = await login(form.email, form.password);
-      toast.success(`স্বাগতম, ${user.name}! 🎉`);
-      router.push(`/${user.role}`);
+      const result = await login(form.email, form.password);
+      if (result.requiresOtp) {
+        setOtpEmail(result.email);
+        setOtpStep(true);
+        toast.success('Login OTP has been sent to your email');
+        return;
+      }
+      toast.success(`Welcome, ${result.name}! 🎉`);
+      router.push(`/${result.role}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed. তথ্য যাচাই করুন।');
+      toast.error(err.response?.data?.message || 'Login failed. Please check your details.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    if (!otp) return toast.error('Enter OTP');
+    setOtpLoading(true);
+    try {
+      const user = await verifyLoginOtp(otpEmail, otp);
+      toast.success(`Welcome, ${user.name}! 🎉`);
+      router.push(`/${user.role}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Wrong OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
     }
   };
 
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     if (!feedbackForm.name || !feedbackForm.email || !feedbackForm.message) {
-      return toast.error('সবগুলো ফিল্ড পূরণ করুন');
+      return toast.error('Please fill in all fields');
     }
     setFeedbackLoading(true);
     try {
       await api.post('/feedback', feedbackForm);
-      toast.success('ফিডব্যাক সফলভাবে জমা দেওয়া হয়েছে! ধন্যবাদ।');
+      toast.success('Feedback submitted successfully! Thank you.');
       setFeedbackForm({ name: '', email: '', message: '' });
       setShowFeedbackModal(false);
     } catch (err) {
@@ -121,7 +151,7 @@ export default function LoginPage() {
         </p>
 
         <p className="text-white/40 text-[13px]">
-          <TypeWriter text="ঠাকুরগাঁও পলিটেকনিক ইন্সটিটিউট — ডিজিটাল উপস্থিতি ব্যবস্থাপনা" delay={3.0} speed={30} />
+          <TypeWriter text="Thakurgaon Polytechnic Institute — Digital Attendance Management" delay={3.0} speed={30} />
         </p>
 
         {/* Download App Button */}
@@ -134,7 +164,7 @@ export default function LoginPage() {
           <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Android App ডাউনলোড করুন
+          Download Android App
         </a>
       </div>
 
@@ -154,10 +184,11 @@ export default function LoginPage() {
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             LOGIN PORTAL
           </h2>
-          <p className="text-white/40 text-[13px]">আপনার account দিয়ে login করুন</p>
+          <p className="text-white/40 text-[13px]">Login with your account</p>
         </div>
 
         {/* Role Tabs */}
+        {!otpStep && (
         <div className="flex p-1 rounded-xl mb-6 gap-4 login-field-anim"
           style={{ animationDelay: "80ms", background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
           {[
@@ -180,7 +211,55 @@ export default function LoginPage() {
             </button>
           ))}
         </div>
+        )}
 
+        {otpStep ? (
+          <form onSubmit={handleOtpSubmit}>
+            <div className="mb-4 text-center login-field-anim" style={{ animationDelay: '80ms' }}>
+              <p className="text-white/70 text-[13px]">
+                🔐 <strong className="text-teal-300">{otpEmail}</strong>-Sent a 6-digit OTP to your email
+              </p>
+            </div>
+
+            <div className="mb-5 relative login-field-anim" style={{ animationDelay: '140ms' }}>
+              <input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                autoFocus
+                maxLength={6}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white text-lg outline-none transition-all duration-300 placeholder:text-white/40 hover:border-emerald-500 hover:bg-emerald-500/10 focus:bg-emerald-500/15 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-center"
+                style={{ letterSpacing: 8, fontFamily: 'monospace' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={otpLoading}
+              className="w-full py-3.5 rounded-[9px] text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 login-submit-btn login-field-anim"
+              style={{
+                background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                boxShadow: '0 4px 20px rgba(22,163,74,0.3)',
+                fontFamily: 'inherit',
+                animationDelay: '200ms'
+              }}
+            >
+              {otpLoading
+                ? <><div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Verifying...</>
+                : <>✅ Verify</>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setOtpStep(false); setOtp(''); }}
+              className="w-full mt-3 py-2 text-white/50 hover:text-white/80 text-[12px] font-semibold transition-colors"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              ← Back to Login page
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit}>
           {/* Email */}
           <div className="mb-4 relative login-field-anim" style={{ animationDelay: "140ms" }}>
@@ -247,15 +326,16 @@ export default function LoginPage() {
             }}
           >
             {loading
-              ? <><div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> লগইন হচ্ছে...</>
-              : <>🔑 Login করুন</>}
+              ? <><div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Logging in...</>
+              : <>🔑 Login</>}
           </button>
         </form>
+        )}
 
         <p className="text-center text-[13px] text-white/100 mt-5">
-          নতুন account?{' '}
+          New account?{' '}
           <Link href="/register" className="text-green-400 font-bold no-underline hover:text-green-300 transition-colors">
-            Register করুন
+            Register
           </Link>
         </p>
 
@@ -291,10 +371,7 @@ export default function LoginPage() {
         </div>
 
         {/* Feedback Modal */}
-        {showFeedbackModal && (
-          <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowFeedbackModal(false)}>
-            <div className="modal-sheet" style={{ maxWidth: 420 }}>
-              <div className="modal-handle" />
+        <Modal open={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} sheetStyle={{ maxWidth: 420 }}>
               <div className="flex justify-between items-center mb-1">
                 <h3 className="modal-title" style={{ marginBottom: 0 }}>Need Help or Have Feedback?</h3>
                 <button onClick={() => setShowFeedbackModal(false)}
@@ -302,35 +379,33 @@ export default function LoginPage() {
                   <Icon name="close" size={18} />
                 </button>
               </div>
-              <p className="text-[13px] text-[var(--txt2)] mb-4">লগইন সমস্যা বা কোনো মতামত থাকলে আমাদের জানান।</p>
+              <p className="text-[13px] text-[var(--txt2)] mb-4">Let us know if you have any login issues or feedback.</p>
               <form onSubmit={handleFeedbackSubmit}>
                 <div className="form-group">
-                  <label className="form-label">আপনার নাম</label>
+                  <label className="form-label">Your Name</label>
                   <input type="text" required className="form-input" placeholder="John Doe"
                     value={feedbackForm.name} onChange={e => setFeedbackForm(p => ({ ...p, name: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">ইমেইল এড্রেস</label>
+                  <label className="form-label">Email Address</label>
                   <input type="email" required className="form-input" placeholder="john@example.com"
                     value={feedbackForm.email} onChange={e => setFeedbackForm(p => ({ ...p, email: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">আপনার মেসেজ</label>
+                  <label className="form-label">Your Message</label>
                   <textarea required rows={4} className="form-input"
-                    placeholder="আপনার সমস্যা বা মতামত এখানে লিখুন..."
+                    placeholder="Describe your issue or feedback here..."
                     style={{ resize: 'none', height: 'auto' }}
                     value={feedbackForm.message} onChange={e => setFeedbackForm(p => ({ ...p, message: e.target.value }))} />
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>বাতিল</button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>Cancel</button>
                   <button type="submit" className="btn-primary" disabled={feedbackLoading}>
-                    {feedbackLoading ? <><div className="spinner spinner-sm" /> জমা হচ্ছে...</> : 'ফিডব্যাক জমা দিন'}
+                    {feedbackLoading ? <><div className="spinner spinner-sm" /> Submitting...</> : 'Submit Feedback'}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+        </Modal>
       </div>
     </div>
   );

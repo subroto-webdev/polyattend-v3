@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
   const auth = await requireAuth(request, ['teacher', 'admin']);
   if (auth.error) return auth.error;
   try {
-    const { subjectId } = params;
+    const { subjectId } = await params;
     const subject = await Subject.findById(subjectId);
     if (!subject) return NextResponse.json({ success: false, message: 'Subject not found' }, { status: 404 });
     if (auth.user.role === 'teacher' && subject.teacherId?.toString() !== auth.user._id.toString()) {

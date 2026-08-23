@@ -52,7 +52,7 @@ export default function TeacherExport() {
   const groupBySection = (items) => {
     const groups = {};
     items.forEach(item => {
-      const key = item.section || 'অজানা';
+      const key = item.section || 'Unknown';
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
@@ -65,12 +65,12 @@ export default function TeacherExport() {
   useEffect(() => {
     api.get('/subjects')
       .then(r => setSubjects(r.data.subjects || []))
-      .catch(() => toast.error('Subject load করতে সমস্যা'))
+      .catch(() => toast.error('Problem loading Subject'))
       .finally(() => setLoadingSubjects(false));
 
     api.get('/sessions?status=ended')
       .then(r => setSessions(r.data.sessions || []))
-      .catch(() => toast.error('Session load করতে সমস্যা'))
+      .catch(() => toast.error('Problem loading Session'))
       .finally(() => setLoadingSessions(false));
   }, []);
 
@@ -90,9 +90,9 @@ export default function TeacherExport() {
     try {
       const res = await api.get(`/reports/subject/${subject._id}${format === 'pdf' ? '?format=pdf' : ''}`, { responseType: 'blob' });
       triggerDownload(res.data, `${subject.code}_${subject.section}_report.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
-      toast.success(`"${subject.name}" report download হয়েছে!`);
+      toast.success(`"${subject.name}" report downloaded!`);
     } catch (err) {
-      toast.error(await getBlobErrorMessage(err, 'Download ব্যর্থ হয়েছে'));
+      toast.error(await getBlobErrorMessage(err, 'Download failed'));
     } finally {
       setDownloading(null);
     }
@@ -104,9 +104,9 @@ export default function TeacherExport() {
       const res = await api.get(`/reports/class/${session._id}${format === 'pdf' ? '?format=pdf' : ''}`, { responseType: 'blob' });
       const dateStr = new Date(session.date).toLocaleDateString('en-BD').replace(/\//g, '-');
       triggerDownload(res.data, `session_${session.subjectId?.code || 'report'}_${dateStr}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
-      toast.success('Session report download হয়েছে!');
+      toast.success('Session report downloaded!');
     } catch (err) {
-      toast.error(await getBlobErrorMessage(err, 'Download ব্যর্থ হয়েছে'));
+      toast.error(await getBlobErrorMessage(err, 'Download failed'));
     } finally {
       setDownloading(null);
     }
@@ -117,9 +117,9 @@ export default function TeacherExport() {
     try {
       const res = await api.get(`/reports/student/${student._id}${format === 'pdf' ? '?format=pdf' : ''}`, { responseType: 'blob' });
       triggerDownload(res.data, `student_${student.studentId || student.name}_report.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
-      toast.success(`${student.name}-এর report download হয়েছে!`);
+      toast.success(`${student.name}'s report downloaded!`);
     } catch (err) {
-      toast.error(await getBlobErrorMessage(err, 'Download ব্যর্থ হয়েছে'));
+      toast.error(await getBlobErrorMessage(err, 'Download failed'));
     } finally {
       setDownloading(null);
     }
@@ -127,14 +127,14 @@ export default function TeacherExport() {
 
   const searchStudents = async () => {
     const q = studentSearch.trim();
-    if (!q) return toast.error('নাম বা Student ID দিন');
+    if (!q) return toast.error('Enter name or Student ID');
     try {
       const res = await api.get('/users', { params: { role: 'student', search: q } });
       const found = res.data.users || [];
       setStudents(found);
-      if (found.length === 0) toast('কোনো student পাওয়া যায়নি', { icon: '🔍' });
+      if (found.length === 0) toast('No student found', { icon: '🔍' });
     } catch {
-      toast.error('Student খুঁজতে সমস্যা হয়েছে');
+      toast.error('Problem searching for Student');
     }
   };
 
@@ -183,24 +183,24 @@ export default function TeacherExport() {
           <>
             <div className="info-banner mb-3">
               <Icon name="info" size={16} />
-              <span className="info-text">Subject-এর সব session ও student-এর পূর্ণ Excel report download করুন</span>
+              <span className="info-text">Download the full Excel report of all sessions and students for a Subject</span>
             </div>
             {loadingSubjects ? (
               <div className="loading"><div className="spinner" /></div>
             ) : subjects.length === 0 ? (
-              <div className="card"><div className="empty"><Icon name="book" size={32} /><p>কোনো subject নেই</p></div></div>
+              <div className="card"><div className="empty"><Icon name="book" size={32} /><p>No subjects yet</p></div></div>
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <input
                     className="form-input"
-                    placeholder="Subject নাম, code বা department দিয়ে খুঁজুন..."
+                    placeholder="Search by Subject name, code or department..."
                     value={subjectFilter}
                     onChange={e => setSubjectFilter(e.target.value)}
                   />
                 </div>
                 {filteredSubjects.length === 0 ? (
-                  <div className="card"><div className="empty"><Icon name="search" size={32} /><p>কোনো subject পাওয়া যায়নি</p></div></div>
+                  <div className="card"><div className="empty"><Icon name="search" size={32} /><p>No subject found</p></div></div>
                 ) : groupedSubjects.map(group => (
                   <div key={group.section} style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt2)', background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }}>
@@ -251,24 +251,24 @@ export default function TeacherExport() {
           <>
             <div className="info-banner mb-3">
               <Icon name="info" size={16} />
-              <span className="info-text">প্রতিটি class session-এর attendance list download করুন</span>
+              <span className="info-text">Download the attendance list for each class session</span>
             </div>
             {loadingSessions ? (
               <div className="loading"><div className="spinner" /></div>
             ) : sessions.length === 0 ? (
-              <div className="card"><div className="empty"><Icon name="clipboard" size={32} /><p>কোনো completed session নেই</p></div></div>
+              <div className="card"><div className="empty"><Icon name="clipboard" size={32} /><p>No completed sessions yet</p></div></div>
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <input
                     className="form-input"
-                    placeholder="Subject, section বা তারিখ দিয়ে খুঁজুন..."
+                    placeholder="Search by Subject, section or date..."
                     value={sessionFilter}
                     onChange={e => setSessionFilter(e.target.value)}
                   />
                 </div>
                 {filteredSessions.length === 0 ? (
-                  <div className="card"><div className="empty"><Icon name="search" size={32} /><p>কোনো session পাওয়া যায়নি</p></div></div>
+                  <div className="card"><div className="empty"><Icon name="search" size={32} /><p>No session found</p></div></div>
                 ) : groupedSessions.map(group => (
                   <div key={group.section} style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt2)', background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }}>
@@ -320,12 +320,12 @@ export default function TeacherExport() {
           <>
             <div className="info-banner mb-3">
               <Icon name="info" size={16} />
-              <span className="info-text">Student-এর নাম বা ID দিয়ে খুঁজুন, তারপর report download করুন</span>
+              <span className="info-text">Search by Student's name or ID, then download the report</span>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <input
                 className="form-input"
-                placeholder="Student নাম বা ID লিখুন..."
+                placeholder="Enter Student name or ID..."
                 value={studentSearch}
                 onChange={e => setStudentSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && searchStudents()}
@@ -339,7 +339,7 @@ export default function TeacherExport() {
               <div className="card">
                 <div className="empty">
                   <Icon name="search" size={32} />
-                  <p>Student খুঁজুন, তারপর report download করুন</p>
+                  <p>Search for a Student, then download the report</p>
                 </div>
               </div>
             ) : groupedStudents.map(group => (

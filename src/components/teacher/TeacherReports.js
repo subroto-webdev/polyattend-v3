@@ -59,7 +59,7 @@ export default function TeacherReports() {
       const a = document.createElement('a');
       a.href = url; a.download = `${filenameBase}.${format === 'pdf' ? 'pdf' : 'xlsx'}`; a.click();
       window.URL.revokeObjectURL(url);
-      toast.success('Report download শুরু হয়েছে!');
+      toast.success('Report download started!');
     } catch (err) { toast.error(await getBlobErrorMessage(err)); }
   };
 
@@ -72,7 +72,7 @@ export default function TeacherReports() {
   const groupedSubjects = useMemo(() => {
     const groups = {};
     filteredSubjects.forEach(s => {
-      const key = s.section || 'অজানা';
+      const key = s.section || 'Unknown';
       if (!groups[key]) groups[key] = [];
       groups[key].push(s);
     });
@@ -85,12 +85,12 @@ export default function TeacherReports() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">Attendance Reports</h2>
-        <p className="page-sub">Subject-wise attendance দেখুন ও Excel/PDF এ download করুন</p>
+        <p className="page-sub">View Subject-wise attendance and download as Excel/PDF</p>
       </div>
 
       {!selectedSubject ? (
         <>
-          <div className="section-title">Subject বেছে নিন</div>
+          <div className="section-title">Select Subject</div>
           <div style={{ position: 'relative', marginBottom: 14 }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt3)' }}>
               <Icon name="search" size={15} />
@@ -98,14 +98,14 @@ export default function TeacherReports() {
             <input
               type="text"
               className="form-input"
-              placeholder="Subject নাম বা code দিয়ে খুঁজুন..."
+              placeholder="Search by Subject name or code..."
               value={subjectSearch}
               onChange={e => setSubjectSearch(e.target.value)}
               style={{ paddingLeft: 36, maxWidth: 360 }}
             />
           </div>
           {filteredSubjects.length === 0 ? (
-            <div className="card"><div className="empty"><p>{subjects.length === 0 ? 'কোনো subject নেই' : 'কোনো subject পাওয়া যায়নি'}</p></div></div>
+            <div className="card"><div className="empty"><p>{subjects.length === 0 ? 'No subjects yet' : 'No subject found'}</p></div></div>
           ) : groupedSubjects.map(group => (
             <div key={group.section} style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt2)', background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }}>
@@ -118,7 +118,7 @@ export default function TeacherReports() {
                     <div className="subject-name">{s.name}</div>
                     <div className="subject-meta">{s.departmentId?.name} • Sem {s.semester} • Group {s.section}</div>
                     <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--info)', fontSize: 13, fontWeight: 600 }}>
-                      <Icon name="eye" size={14} /> Report দেখুন
+                      <Icon name="eye" size={14} /> View Report
                     </div>
                   </div>
                 ))}
@@ -177,7 +177,7 @@ export default function TeacherReports() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Student নাম বা ID দিয়ে খুঁজুন..."
+                  placeholder="Search by Student name or ID..."
                   value={studentSearch}
                   onChange={e => setStudentSearch(e.target.value)}
                   style={{ paddingLeft: 36, maxWidth: 360 }}
@@ -199,7 +199,7 @@ export default function TeacherReports() {
                   </thead>
                   <tbody>
                     {filteredReport.length === 0 ? (
-                      <tr><td colSpan={8} style={{ textAlign: 'center', padding: 20, color: 'var(--txt2)' }}>কোনো student পাওয়া যায়নি</td></tr>
+                      <tr><td colSpan={8} style={{ textAlign: 'center', padding: 20, color: 'var(--txt2)' }}>No student found</td></tr>
                     ) : filteredReport.map((r, i) => (
                       <tr key={r.student._id}>
                         <td>{i + 1}</td>

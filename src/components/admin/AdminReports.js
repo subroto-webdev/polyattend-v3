@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 function groupBySection(items) {
   const groups = {};
   items.forEach(item => {
-    const key = item.section || 'অজানা';
+    const key = item.section || 'Unknown';
     if (!groups[key]) groups[key] = [];
     groups[key].push(item);
   });
@@ -95,7 +95,7 @@ export default function AdminReports() {
         // (Promise.all rejects as a whole), which looked exactly like
         // "nothing to download". Now the admin actually sees why.
         console.error(err);
-        toast.error(err.response?.data?.message || 'Reports load করতে সমস্যা হয়েছে');
+        toast.error(err.response?.data?.message || 'Problem loading Reports');
       })
       .finally(() => setLoading(false));
   }, []);
@@ -143,7 +143,7 @@ export default function AdminReports() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
       window.URL.revokeObjectURL(url);
-      toast.success('Download শুরু!');
+      toast.success('Download started!');
     } catch (err) { toast.error(await getBlobErrorMessage(err)); }
     finally { setDownloadingId(null); }
   };
@@ -152,14 +152,14 @@ export default function AdminReports() {
   // from the Session Reports tab. Active sessions must be ended first —
   // enforced by the backend, mirrored here to keep the button disabled.
   const deleteSession = async (s) => {
-    if (!window.confirm(`"${s.subjectId?.name || 'এই session'}" — ${new Date(s.date).toLocaleDateString()} সম্পূর্ণভাবে মুছে ফেলবেন? এর attendance-ও মুছে যাবে, এটি ফেরত আনা যাবে না।`)) return;
+    if (!window.confirm(`Completely delete "${s.subjectId?.name || 'this session'}" — ${new Date(s.date).toLocaleDateString()}? Its attendance will also be deleted, this cannot be undone.`)) return;
     setDeletingSessionId(s._id);
     try {
       await api.delete(`/sessions/${s._id}`);
       setSessions(prev => prev.filter(x => x._id !== s._id));
-      toast.success('Session মুছে ফেলা হয়েছে');
+      toast.success('Session deleted');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Delete করতে সমস্যা হয়েছে');
+      toast.error(err.response?.data?.message || 'Problem deleting');
     } finally {
       setDeletingSessionId(null);
     }
@@ -171,7 +171,7 @@ export default function AdminReports() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">Reports & Export</h2>
-        <p className="page-sub">Excel অথবা PDF রিপোর্ট download করুন</p>
+        <p className="page-sub">Download Excel or PDF reports</p>
       </div>
 
       <div className="chips" style={{ background: 'none', border: 'none', padding: '0 0 16px 0' }}>
@@ -183,9 +183,9 @@ export default function AdminReports() {
       {tab === 'subject' && (
         <>
           <div className="section-title">Subject-wise Full Report</div>
-          <SearchBox value={subjectSearch} onChange={setSubjectSearch} placeholder="Subject নাম, code বা department দিয়ে খুঁজুন..." />
+          <SearchBox value={subjectSearch} onChange={setSubjectSearch} placeholder="Search by Subject name, code or department..." />
           {filteredSubjects.length === 0 ? (
-            <div className="card"><div className="empty"><p>{subjects.length === 0 ? 'কোনো subject নেই' : 'কোনো subject পাওয়া যায়নি'}</p></div></div>
+            <div className="card"><div className="empty"><p>{subjects.length === 0 ? 'No subjects yet' : 'No subject found'}</p></div></div>
           ) : groupedSubjects.map(group => (
             <div key={group.section}>
               <SectionHeading label={group.section} />
@@ -209,9 +209,9 @@ export default function AdminReports() {
       {tab === 'session' && (
         <>
           <div className="section-title">Session-wise Report</div>
-          <SearchBox value={sessionSearch} onChange={setSessionSearch} placeholder="Subject, section বা তারিখ দিয়ে খুঁজুন..." />
+          <SearchBox value={sessionSearch} onChange={setSessionSearch} placeholder="Search by Subject, section or date..." />
           {filteredSessions.length === 0 ? (
-            <div className="card"><div className="empty"><p>{sessions.length === 0 ? 'কোনো session নেই' : 'কোনো session পাওয়া যায়নি'}</p></div></div>
+            <div className="card"><div className="empty"><p>{sessions.length === 0 ? 'No sessions yet' : 'No session found'}</p></div></div>
           ) : groupedSessions.map(group => (
             <div key={group.section}>
               <SectionHeading label={group.section} />
@@ -230,7 +230,7 @@ export default function AdminReports() {
                         onClick={() => deleteSession(s)}
                         disabled={deletingSessionId === s._id || s.status === 'active'}
                         style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)' }}
-                        title={s.status === 'active' ? 'আগে Session End করুন' : 'এই session ও তার attendance মুছে ফেলুন'}
+                        title={s.status === 'active' ? 'End the Session first' : 'Delete this session and its attendance'}
                       >
                         {deletingSessionId === s._id ? <div className="spinner spinner-sm" /> : <Icon name="trash" size={14} />}
                       </button>
@@ -246,9 +246,9 @@ export default function AdminReports() {
       {tab === 'student' && (
         <>
           <div className="section-title">Student Personal Report</div>
-          <SearchBox value={studentSearch} onChange={setStudentSearch} placeholder="Student নাম, ID বা department দিয়ে খুঁজুন..." />
+          <SearchBox value={studentSearch} onChange={setStudentSearch} placeholder="Search by Student name, ID or department..." />
           {filteredStudents.length === 0 ? (
-            <div className="card"><div className="empty"><p>{students.length === 0 ? 'কোনো student নেই' : 'কোনো student পাওয়া যায়নি'}</p></div></div>
+            <div className="card"><div className="empty"><p>{students.length === 0 ? 'No students yet' : 'No student found'}</p></div></div>
           ) : groupedStudents.map(group => (
             <div key={group.section}>
               <SectionHeading label={group.section} />

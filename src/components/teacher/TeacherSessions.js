@@ -28,15 +28,15 @@ export function TeacherSessions() {
   // to keep the delete button visually disabled while a session is live.
   const deleteSession = async (e, s) => {
     e.stopPropagation(); // don't trigger viewSession() on the row
-    if (!window.confirm(`"${s.subjectId?.name || 'এই session'}" — ${new Date(s.date).toLocaleDateString('en-BD')} সম্পূর্ণভাবে মুছে ফেলবেন? এর attendance-ও মুছে যাবে, এটি ফেরত আনা যাবে না।`)) return;
+    if (!window.confirm(`Completely delete "${s.subjectId?.name || 'this session'}" — ${new Date(s.date).toLocaleDateString('en-BD')}? Its attendance will also be deleted, this cannot be undone.`)) return;
     setDeletingId(s._id);
     try {
       await api.delete(`/sessions/${s._id}`);
       setSessions(prev => prev.filter(x => x._id !== s._id));
       if (selected?._id === s._id) setSelected(null);
-      toast.success('Session মুছে ফেলা হয়েছে');
+      toast.success('Session deleted');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Delete করতে সমস্যা হয়েছে');
+      toast.error(err.response?.data?.message || 'Problem deleting');
     } finally {
       setDeletingId(null);
     }
@@ -62,7 +62,7 @@ export function TeacherSessions() {
                 onClick={(e) => deleteSession(e, selected)}
                 disabled={deletingId === selected._id}
                 style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)' }}
-                title="এই session ও তার attendance মুছে ফেলুন"
+                title="Delete this session and its attendance"
               >
                 {deletingId === selected._id ? <div className="spinner spinner-sm" /> : <><Icon name="trash" size={14} /> Delete</>}
               </button>
@@ -89,9 +89,9 @@ export function TeacherSessions() {
                       <td><span className={`tag tag-${a.status === 'present' ? 'green' : 'red'}`}>{a.status}</span></td>
                       <td>
                         {a.markedBy === 'self' ? (
-                          <span className="tag tag-amber" style={{ fontSize: 11 }} title="শিক্ষার্থী নিজে attendance দিয়েছে">Self</span>
+                          <span className="tag tag-amber" style={{ fontSize: 11 }} title="Student marked their own attendance">Self</span>
                         ) : a.status === 'present' ? (
-                          <span style={{ fontSize: 11, color: 'var(--txt2)', textTransform: 'capitalize' }}>{a.markedBy || 'qr'}</span>
+                          <span style={{ fontSize: 11, color: 'var(--txt2)', textTransform: 'capitalize' }}>{a.markedBy || 'manual'}</span>
                         ) : '-'}
                       </td>
                       <td style={{ fontSize: 12 }}>{a.scannedAt ? new Date(a.scannedAt).toLocaleTimeString('en-BD') : '-'}</td>
@@ -104,12 +104,12 @@ export function TeacherSessions() {
         ) : (
           <div>
             {sessions.length === 0 ? (
-              <div className="card"><div className="empty"><p>কোনো session নেই</p></div></div>
+              <div className="card"><div className="empty"><p>No sessions yet</p></div></div>
             ) : (() => {
               // ── FIX (grouping request): group by Section wherever a list shows one.
               const groups = {};
               sessions.forEach(s => {
-                const key = s.section || 'অজানা';
+                const key = s.section || 'Unknown';
                 if (!groups[key]) groups[key] = [];
                 groups[key].push(s);
               });
@@ -136,7 +136,7 @@ export function TeacherSessions() {
                             onClick={(e) => deleteSession(e, s)}
                             disabled={deletingId === s._id || s.status === 'active'}
                             style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)', padding: '6px 8px' }}
-                            title={s.status === 'active' ? 'আগে Session End করুন' : 'এই session ও তার attendance মুছে ফেলুন'}
+                            title={s.status === 'active' ? 'End the Session first' : 'Delete this session and its attendance'}
                           >
                             {deletingId === s._id ? <div className="spinner spinner-sm" /> : <Icon name="trash" size={14} />}
                           </button>
@@ -198,7 +198,7 @@ export function TeacherExport() {
         <div className="section-title">Class Session Reports</div>
         <div className="info-banner mb-3">
           <Icon name="info" size={16} />
-          <span className="info-text">প্রতিটি session-এর পাশে download বাটন চাপুন</span>
+          <span className="info-text">Click the download button next to each session</span>
         </div>
         <div className="card mb-3">
           {sessions.map(s => (
@@ -213,12 +213,12 @@ export function TeacherExport() {
               </button>
             </div>
           ))}
-          {sessions.length === 0 && <div className="empty"><p>কোনো session নেই</p></div>}
+          {sessions.length === 0 && <div className="empty"><p>No sessions yet</p></div>}
         </div>
 
         <div className="section-title">Student Report</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input className="form-input" placeholder="Student নাম বা ID..." value={studentSearch}
+          <input className="form-input" placeholder="Student name or ID..." value={studentSearch}
             onChange={e => setStudentSearch(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && searchStudents()}
             style={{ flex: 1 }} />
@@ -237,7 +237,7 @@ export function TeacherExport() {
               </button>
             </div>
           ))}
-          {students.length === 0 && <div className="empty"><Icon name="search" size={32} /><p>Student খুঁজুন</p></div>}
+          {students.length === 0 && <div className="empty"><Icon name="search" size={32} /><p>Search for a Student</p></div>}
         </div>
       </div>
     </div>

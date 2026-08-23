@@ -26,17 +26,32 @@ export async function GET(request, { params }) {
   // student — could hit this route and pull the full class roster, every
   // student's name/ID, and their entire attendance history for a subject
   // they may not even belong to, just by knowing/guessing a subjectId.
-  // This report is only meant for the subject's teacher or an admin.
-  const auth = await requireAuth(request, ['teacher', 'admin']);
+  // This report is only meant for the subject's teacher, a scoped admin
+  // (Sub Admin / Semester Admin) covering that subject, or a Super Admin.
+  const auth = await requireAuth(request, ['teacher', 'admin', 'subAdmin', 'semesterAdmin']);
   if (auth.error) return auth.error;
   try {
-    const subject = await Subject.findById(params.subjectId)
+    const { subjectId } = await params;
+    const subject = await Subject.findById(subjectId)
       .populate('departmentId', 'name code').populate('teacherId', 'name');
     if (!subject) return errorResponse(new Error('Subject not found'), 404);
-    if (!subject.departmentId) return errorResponse(new Error('এই subject-এর Department খুঁজে পাওয়া যায়নি'), 400);
+    if (!subject.departmentId) return errorResponse(new Error('Department for this subject not found'), 400);
 
     if (auth.user.role === 'teacher' && subject.teacherId?._id?.toString() !== auth.user._id.toString()) {
-      return errorResponse(new Error('এটা আপনার subject নয়'), 403);
+      return errorResponse(new Error('This is not your subject'), 403);
+    }
+    // SCOPE ENFORCEMENT: Sub Admin can only pull reports for subjects in
+    // their own Department+Shift; Semester Admin additionally needs the
+    // subject's Semester to match theirs.
+    if (auth.user.role === 'subAdmin') {
+      if (subject.departmentId._id.toString() !== auth.user.departmentId?.toString() || subject.shift !== auth.user.shift) {
+        return errorResponse(new Error('This subject is outside your scope'), 403);
+      }
+    }
+    if (auth.user.role === 'semesterAdmin') {
+      if (subject.departmentId._id.toString() !== auth.user.departmentId?.toString() || subject.shift !== auth.user.shift || subject.semester !== auth.user.semester) {
+        return errorResponse(new Error('This subject is outside your scope'), 403);
+      }
     }
 
     const sessions = await Session.find({ subjectId: subject._id, status: 'ended' }).sort({ date: 1 });

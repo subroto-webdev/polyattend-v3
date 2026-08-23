@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { activateSessionGuard, deactivateSessionGuard, blockIfSessionActive } from '@/utils/sessionGuard';
 
 // Call with (isActive, label) from any page that runs a live attendance
-// session (Manual Attendance, QR Scanner). While isActive is true:
+// session (Manual Attendance). While isActive is true:
 //   - Pressing the Back button is HARD BLOCKED — no skip/bypass option. It
 //     shows an alert telling the teacher to end the session first, and the
 //     page never actually navigates away (via a well-known SPA trick: push

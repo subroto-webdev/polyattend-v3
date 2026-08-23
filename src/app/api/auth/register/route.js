@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import User from '@/lib/models/User';
-import QRCode from 'qrcode';
 import { requireAuth, errorResponse } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -15,11 +14,6 @@ export async function POST(request) {
 
     const user = await User.create({ name, email, password, role, studentId, departmentId, semester, section, shift, isVerified: true });
 
-    if (role === 'student' && studentId) {
-      const qrData = JSON.stringify({ studentId: user._id.toString(), sid: studentId });
-      user.qrCode = await QRCode.toDataURL(qrData);
-      await user.save();
-    }
     return NextResponse.json({ success: true, message: 'User created successfully', user }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }

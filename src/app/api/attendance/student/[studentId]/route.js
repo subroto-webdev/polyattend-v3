@@ -10,9 +10,10 @@ export async function GET(request, { params }) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
   try {
-    const student = await User.findById(params.studentId);
+    const { studentId } = await params;
+    const student = await User.findById(studentId);
     if (!student) return NextResponse.json({ success: false, message: 'Student not found' }, { status: 404 });
-    if (auth.user.role === 'student' && auth.user._id.toString() !== params.studentId) {
+    if (auth.user.role === 'student' && auth.user._id.toString() !== studentId) {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });
     }
 
@@ -21,7 +22,7 @@ export async function GET(request, { params }) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const filter = { studentId: params.studentId };
+    const filter = { studentId };
     if (subjectId) filter.subjectId = subjectId;
     if (startDate || endDate) {
       filter.date = {};

@@ -15,7 +15,7 @@ function classNameFromSession(session) {
 // POST /api/attendance/self-mark
 // Student-only. Body: { sessionId }
 // Student clicks "Mark My Attendance" on their dashboard while a session is
-// active; this marks them present directly — no QR scan, no teacher action.
+// active; this marks them present directly — no teacher action needed.
 export async function POST(request) {
   const auth = await requireAuth(request, ['student']);
   if (auth.error) return auth.error;
@@ -23,13 +23,13 @@ export async function POST(request) {
     const student = auth.user;
     const { sessionId } = await request.json();
     if (!sessionId) {
-      return NextResponse.json({ success: false, message: 'sessionId প্রয়োজন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'sessionId is required' }, { status: 400 });
     }
 
     const session = await Session.findById(sessionId).populate('subjectId', 'shift');
-    if (!session) return NextResponse.json({ success: false, message: 'Session পাওয়া যায়নি' }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
     if (session.status !== 'active') {
-      return NextResponse.json({ success: false, message: 'এই session আর active নেই' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'This session is no longer active' }, { status: 400 });
     }
 
     // Make sure this student actually belongs to this class/section/shift —
@@ -43,14 +43,14 @@ export async function POST(request) {
       (sessionShift && student.shift !== sessionShift);
 
     if (classMismatch) {
-      return NextResponse.json({ success: false, message: 'এই session আপনার class-এর নয়' }, { status: 403 });
+      return NextResponse.json({ success: false, message: 'This session is not for your class' }, { status: 403 });
     }
 
     const existing = await Attendance.findOne({ sessionId, studentId: student._id });
     if (existing && existing.status === 'present') {
       return NextResponse.json({
         success: false,
-        message: 'আপনার attendance ইতিমধ্যে marked হয়ে গেছে',
+        message: 'Your attendance is already marked',
         attendance: existing,
       }, { status: 400 });
     }
@@ -74,7 +74,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: '✅ আপনার attendance marked হয়েছে',
+      message: '✅ Your attendance has been marked',
       attendance,
     });
   } catch (error) { return errorResponse(error); }

@@ -11,7 +11,7 @@ export async function POST(request) {
   try {
     const { name, email, message } = await request.json();
     if (!name || !email || !message) {
-      return NextResponse.json({ success: false, message: 'সবগুলো ফিল্ড পূরণ করুন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Please fill in all fields' }, { status: 400 });
     }
 
     await Feedback.create({ name, email, message });
@@ -31,6 +31,6 @@ export async function POST(request) {
         </div>`,
     });
 
-    return NextResponse.json({ success: true, message: 'ফিডব্যাক সফলভাবে জমা দেওয়া হয়েছে! ধন্যবাদ।' }, { status: 201 });
+    return NextResponse.json({ success: true, message: 'Feedback submitted successfully! Thank you.' }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }

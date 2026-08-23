@@ -14,18 +14,18 @@ import { motion } from 'framer-motion';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
-  const [subjects, setSubjects] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     Promise.all([
+      api.get('/sessions?status=ended'),
       api.get('/subjects'),
-      api.get('/sessions?status=ended')
-    ]).then(([s, sess]) => {
-      setSubjects(s.data.subjects || []);
+    ]).then(([sess, subs]) => {
       setSessions(sess.data.sessions?.slice(0, 5) || []);
+      setSubjects(subs.data.subjects || []);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -42,7 +42,7 @@ export default function TeacherDashboard() {
           <div className="absolute inset-0 rounded-full border-2 border-[#20242E]" />
           <div className="absolute inset-0 rounded-full border-2 border-t-indigo-400 animate-spin" />
         </div>
-        <p className="text-sm text-slate-500">লোড হচ্ছে...</p>
+        <p className="text-sm text-slate-500">Loading...</p>
       </div>
     );
   }
@@ -50,12 +50,19 @@ export default function TeacherDashboard() {
   const totalPresent = sessions.reduce((s, r) => s + (r.presentCount || 0), 0);
   const totalStudents = sessions.reduce((s, r) => s + (r.totalStudents || 0), 0);
   const avgAtt = totalStudents ? Math.round(totalPresent / totalStudents * 100) : 0;
-  const classCount = [...new Set(subjects.map(s => `${s.semester}-${s.section}`))].length;
 
   const firstName = user?.name?.split(' ')[0] || '';
   const greeting = getGreeting(now);
   const dateStr = now.toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-BD', { hour: '2-digit', minute: '2-digit' });
+  // MULTI-SUBJECT: a Teacher can now have several Subjects assigned, so
+  // the hero label adapts — one Subject shows its full name, more than
+  // one shows a count (the "Subject" tab has the full breakdown).
+  const subjectLabel = subjects.length === 1
+    ? `${subjects[0].name} (${subjects[0].code}) — Group ${subjects[0].section}`
+    : subjects.length > 1
+    ? `Responsible for ${subjects.length} Subjects`
+    : null;
 
   return (
     <div className="min-h-screen bg-[#0A0B0F] text-slate-200 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -90,7 +97,16 @@ export default function TeacherDashboard() {
                 <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
                   {firstName}
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">আজকে কোন class নেবেন? নিচে subject select করুন।</p>
+                {subjectLabel ? (
+                  <p className="text-sm text-indigo-300 mt-1 font-medium">{subjectLabel}</p>
+                ) : (
+                  <p className="text-sm text-slate-400 mt-1">Which class will you take today?</p>
+                )}
+                {user?.departmentId?.name && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {user.departmentId.name} • Semester {user?.semester} • {user?.shift === '1st' ? 'Morning' : 'Day'} Shift
+                  </p>
+                )}
               </div>
             </div>
 
@@ -102,78 +118,34 @@ export default function TeacherDashboard() {
         </motion.div>
 
         {/* ---------------- STATS ---------------- */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             index={0}
-            icon="book"
-            label="My Subjects"
-            value={subjects.length}
-            accent="indigo"
-          />
-          <StatCard
-            index={1}
             icon="clipboard"
             label="Sessions Taken"
             value={sessions.length}
             accent="blue"
           />
           <StatCard
-            index={2}
+            index={1}
             icon="chart"
             label="Avg Attendance"
             value={`${avgAtt}%`}
             accent="emerald"
           />
           <StatCard
-            index={3}
+            index={2}
             icon="users"
-            label="Classes"
-            value={classCount}
+            label="Total Present"
+            value={totalPresent}
             accent="amber"
           />
         </div>
 
-        {/* ---------------- SUBJECTS ---------------- */}
-        <section>
-          <SectionHeader title="আমার Subjects" />
-
-          {subjects.length === 0 ? (
-            <EmptyState
-              icon="book"
-              text={'কোনো subject নেই। "Subjects" থেকে নতুন subject তৈরি করুন।'}
-            />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {subjects.map((s, i) => (
-                <motion.div
-                  key={s._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
-                  whileHover={{ y: -3 }}
-                  className="group rounded-2xl border border-[#242938] bg-[#12141A] p-5 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-950/20 transition-colors duration-200"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="inline-flex items-center rounded-md bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-300 border border-indigo-500/20">
-                      {s.code}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-medium text-white mb-1.5 leading-snug">
-                    {s.name}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {s.departmentId?.name} • Semester {s.semester} • Group {s.section}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </section>
-
         {/* ---------------- RECENT SESSIONS ---------------- */}
         {sessions.length > 0 && (
           <section>
-            <SectionHeader title="সাম্প্রতিক Sessions" />
+            <SectionHeader title="Recent Sessions" />
             <div className="rounded-2xl border border-[#242938] bg-[#12141A] divide-y divide-[#20242E] overflow-hidden">
               {sessions.map((s, i) => {
                 const pct = s.totalStudents ? Math.round(s.presentCount / s.totalStudents * 100) : 0;
@@ -223,9 +195,9 @@ export default function TeacherDashboard() {
 
 function getGreeting(date) {
   const h = date.getHours();
-  if (h < 12) return 'শুভ সকাল';
-  if (h < 17) return 'শুভ অপরাহ্ন';
-  return 'শুভ সন্ধ্যা';
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
 }
 
 function attendanceColor(pct) {
@@ -267,17 +239,6 @@ function SectionHeader({ title }) {
   return (
     <div className="flex items-center justify-between mb-4">
       <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">{title}</h2>
-    </div>
-  );
-}
-
-function EmptyState({ icon, text }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-[#2A2F3D] bg-[#12141A]/60 p-10 flex flex-col items-center justify-center text-center">
-      <div className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center mb-3">
-        <Icon name={icon} size={20} className="text-slate-500" />
-      </div>
-      <p className="text-sm text-slate-500 max-w-sm">{text}</p>
     </div>
   );
 }

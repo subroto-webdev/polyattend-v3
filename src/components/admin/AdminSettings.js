@@ -17,14 +17,14 @@ export default function AdminSettings() {
         setThreshold(t);
         setSavedThreshold(t);
       })
-      .catch(err => toast.error(err.response?.data?.message || 'Settings load করতে সমস্যা হয়েছে'))
+      .catch(err => toast.error(err.response?.data?.message || 'Problem loading Settings'))
       .finally(() => setLoading(false));
   }, []);
 
   const save = async () => {
     const val = Number(threshold);
     if (isNaN(val) || val < 0 || val > 100) {
-      toast.error('অনুগ্রহ করে ০ থেকে ১০০-এর মধ্যে একটি সংখ্যা দিন');
+      toast.error('Please enter a number between 0 and 100');
       return;
     }
     setSaving(true);
@@ -32,9 +32,9 @@ export default function AdminSettings() {
       const res = await api.put('/settings', { attendanceThreshold: val });
       setSavedThreshold(res.data.settings.attendanceThreshold);
       setThreshold(res.data.settings.attendanceThreshold);
-      toast.success('Settings সংরক্ষিত হয়েছে!');
+      toast.success('Settings saved!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save করতে সমস্যা হয়েছে');
+      toast.error(err.response?.data?.message || 'Problem saving');
     } finally {
       setSaving(false);
     }
@@ -48,7 +48,7 @@ export default function AdminSettings() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">Settings</h2>
-        <p className="page-sub">সিস্টেমের সাধারণ সেটিংস পরিবর্তন করুন</p>
+        <p className="page-sub">Change general system settings</p>
       </div>
 
       <div className="card" style={{ padding: 20, maxWidth: 480 }}>
@@ -57,7 +57,7 @@ export default function AdminSettings() {
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Exam Eligibility — Attendance Threshold</div>
             <div style={{ fontSize: 12, color: 'var(--txt2)' }}>
-              এই percentage-এর নিচে attendance থাকলে student-কে Dashboard-এ warning দেখানো হবে যে সে ঐ subject-এ exam দিতে পারবে না।
+              If a student's attendance falls below this percentage, a warning will be shown on their Dashboard that they cannot sit for the exam in that subject.
             </div>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function AdminSettings() {
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--txt3)', marginTop: 10 }}>
-          বর্তমানে সংরক্ষিত মান: <strong>{savedThreshold}%</strong>
+          Currently saved value: <strong>{savedThreshold}%</strong>
         </div>
 
         <button
@@ -93,7 +93,7 @@ export default function AdminSettings() {
           onClick={save}
           disabled={saving || !hasChanges}
         >
-          {saving ? <><div className="spinner spinner-sm" /> সংরক্ষণ হচ্ছে...</> : <><Icon name="check" size={16} /> Save Changes</>}
+          {saving ? <><div className="spinner spinner-sm" /> Saving...</> : <><Icon name="check" size={16} /> Save Changes</>}
         </button>
       </div>
     </div>

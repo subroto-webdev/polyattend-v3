@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 import Icon from '@/components/common/Icon';
+import { isStrongPassword } from '@/lib/validatePassword';
 
 function ResetPasswordPageInner() {
   const router = useRouter();
@@ -30,13 +31,14 @@ function ResetPasswordPageInner() {
     const { email, otp, newPassword, confirmPassword } = form;
 
     if (!email || !otp || !newPassword || !confirmPassword) {
-      return toast.error('সবগুলো ফিল্ড পূরণ করুন');
+      return toast.error('Please fill in all fields');
     }
-    if (newPassword.length < 6) {
-      return toast.error('নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে');
+    const pwCheck = isStrongPassword(newPassword);
+    if (!pwCheck.ok) {
+      return toast.error(pwCheck.message);
     }
     if (newPassword !== confirmPassword) {
-      return toast.error('পাসওয়ার্ড দুটি মেলেনি');
+      return toast.error('Passwords do not match');
     }
 
     setLoading(true);
@@ -46,10 +48,10 @@ function ResetPasswordPageInner() {
         otp,
         newPassword
       });
-      toast.success(res.data?.message || 'পাসওয়ার্ড পরিবর্তন সফল হয়েছে! 🎉');
+      toast.success(res.data?.message || 'Password changed successfully! 🎉');
       router.push('/login');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে। ওটিপি চেক করুন।');
+      toast.error(err.response?.data?.message || 'Password change failed. Please check the OTP.');
     } finally {
       setLoading(false);
     }
@@ -87,7 +89,7 @@ function ResetPasswordPageInner() {
           </div>
           <h1 className="auth-title">Reset Password</h1>
           <p className="auth-sub" style={{ lineHeight: 1.6 }}>
-            আপনার ইমেইলে পাঠানো ওটিপি কোড এবং নতুন পাসওয়ার্ড দিয়ে সাবমিট করুন।
+            Submit with the OTP code sent to your email and your new password.
           </p>
         </div>
 
@@ -158,6 +160,9 @@ function ResetPasswordPageInner() {
                 <Icon name="eye" size={16} />
               </button>
             </div>
+            <div style={{ fontSize: 11, marginTop: 5, color: 'rgba(255,255,255,0.4)' }}>
+              At least 8 characters, with uppercase, lowercase and a number
+            </div>
           </div>
 
           {/* Confirm Password */}
@@ -188,13 +193,13 @@ function ResetPasswordPageInner() {
             </div>
             {form.confirmPassword && (
               <div style={{ fontSize: 11, marginTop: 5, fontWeight: 600, color: passwordsMatch ? '#4ade80' : '#f87171' }}>
-                {passwordsMatch ? '✓ পাসওয়ার্ড মিলেছে' : '✗ পাসওয়ার্ড মেলেনি'}
+                {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
               </div>
             )}
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary rst-submit" style={{ marginTop: 8 }}>
-            {loading ? <><div className="spinner spinner-sm" /> রিসেট হচ্ছে...</> : 'Reset Password'}
+            {loading ? <><div className="spinner spinner-sm" /> Resetting...</> : 'Reset Password'}
           </button>
         </form>
 

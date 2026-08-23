@@ -22,7 +22,7 @@ export async function POST(request) {
     const attendanceList = Array.isArray(body?.attendanceList) ? body.attendanceList : null;
 
     if (!sessionId || !attendanceList) {
-      return NextResponse.json({ success: false, message: 'sessionId ও attendanceList প্রয়োজন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'sessionId and attendanceList are required' }, { status: 400 });
     }
 
     const session = await Session.findById(sessionId);
@@ -32,13 +32,13 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });
     }
     if (!session.departmentId || !session.subjectId) {
-      return NextResponse.json({ success: false, message: 'এই session-এ Subject/Department তথ্য অসম্পূর্ণ। Session বাতিল করে আবার শুরু করুন।' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Subject/Department data is incomplete for this session. Cancel the Session and start again.' }, { status: 400 });
     }
 
     const className = classNameFromSession(session);
     const validItems = attendanceList.filter(item => item && item.studentId);
     if (validItems.length === 0) {
-      return NextResponse.json({ success: false, message: 'কোনো valid student পাওয়া যায়নি' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'No valid student found' }, { status: 400 });
     }
 
     const ops = validItems.map(item => ({

@@ -14,13 +14,14 @@ export async function GET(request, { params }) {
   const auth = await requireAuth(request, ['teacher', 'admin']);
   if (auth.error) return auth.error;
   try {
-    const session = await Session.findById(params.sessionId);
+    const { sessionId } = await params;
+    const session = await Session.findById(sessionId);
     if (!session) return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
     if (auth.user.role === 'teacher' && session.teacherId.toString() !== auth.user._id.toString()) {
-      return NextResponse.json({ success: false, message: 'এটা আপনার session নয়' }, { status: 403 });
+      return NextResponse.json({ success: false, message: 'This is not your session' }, { status: 403 });
     }
 
-    const attendance = await Attendance.find({ sessionId: params.sessionId })
+    const attendance = await Attendance.find({ sessionId })
       .populate('studentId', 'name studentId section shift')
       .sort({ 'studentId.name': 1 });
     return NextResponse.json({ success: true, count: attendance.length, attendance });

@@ -39,22 +39,22 @@ export async function requireAuth(request, roles = null) {
 }
 
 export function errorResponse(error, status = 500) {
-  // Server-side এ পুরো error সবসময় log হয় (debugging-এর জন্য), কিন্তু client-কে raw JS
-  // internal error (যেমন "Cannot read properties of null...") কখনো পাঠানো হয় না —
-  // বদলে একটা বোধগম্য বাংলা বার্তা পাঠানো হয়।
+  // The full error is always logged server-side (for debugging), but a raw JS
+  // internal error (e.g. "Cannot read properties of null...") is never sent
+  // to the client — a friendly message is sent instead.
   console.error('[API ERROR]', error);
 
   const raw = error?.message || '';
   const isRawJsCrash = /Cannot read propert(y|ies) of (null|undefined)/i.test(raw) || error instanceof TypeError;
 
   const message = isRawJsCrash
-    ? 'একটি অপ্রত্যাশিত সমস্যা হয়েছে। আবার চেষ্টা করুন, সমস্যা থাকলে Admin-কে জানান।'
+    ? 'An unexpected problem occurred. Please try again, and contact your Admin if the problem persists.'
     : (raw || 'Server error');
 
   return NextResponse.json({
     success: false,
     message,
-    // শুধু development-এ raw error দেখাবে (debugging-এর জন্য), production-এ কখনো না।
+    // Only show the raw error in development (for debugging), never in production.
     debug: process.env.NODE_ENV !== 'production' ? raw : undefined,
   }, { status });
 }

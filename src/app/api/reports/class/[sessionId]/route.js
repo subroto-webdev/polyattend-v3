@@ -23,17 +23,31 @@ const applyBorder = (cell) => {
 export async function GET(request, { params }) {
   // SECURITY FIX: was open to any authenticated user (including students),
   // exposing the full class roster + who was present/absent for any session
-  // ID. Restrict to the owning teacher or an admin, same as other reports.
-  const auth = await requireAuth(request, ['teacher', 'admin']);
+  // ID. Restrict to the owning teacher, a scoped admin covering that
+  // session, or a Super Admin.
+  const auth = await requireAuth(request, ['teacher', 'admin', 'subAdmin', 'semesterAdmin']);
   if (auth.error) return auth.error;
   try {
-    const session = await Session.findById(params.sessionId)
+    const { sessionId } = await params;
+    const session = await Session.findById(sessionId)
       .populate('departmentId', 'name code').populate('subjectId', 'name code').populate('teacherId', 'name');
     if (!session) return errorResponse(new Error('Session not found'), 404);
-    if (!session.departmentId) return errorResponse(new Error('এই session-এর Department খুঁজে পাওয়া যায়নি'), 400);
+    if (!session.departmentId) return errorResponse(new Error('Department for this session not found'), 400);
 
     if (auth.user.role === 'teacher' && session.teacherId?._id?.toString() !== auth.user._id.toString()) {
-      return errorResponse(new Error('এটা আপনার session নয়'), 403);
+      return errorResponse(new Error('This is not your session'), 403);
+    }
+    // SCOPE ENFORCEMENT: same rule as the subject report — Sub Admin needs
+    // matching Department+Shift, Semester Admin also needs matching Semester.
+    if (auth.user.role === 'subAdmin') {
+      if (session.departmentId._id.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift) {
+        return errorResponse(new Error('This session is outside your scope'), 403);
+      }
+    }
+    if (auth.user.role === 'semesterAdmin') {
+      if (session.departmentId._id.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || session.semester !== auth.user.semester) {
+        return errorResponse(new Error('This session is outside your scope'), 403);
+      }
     }
 
     const attendance = await Attendance.find({ sessionId: session._id }).populate('studentId', 'name studentId section');
@@ -57,7 +71,7 @@ export async function GET(request, { params }) {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="session_${params.sessionId}.pdf"`,
+          'Content-Disposition': `attachment; filename="session_${sessionId}.pdf"`,
         },
       });
     }
@@ -75,14 +89,13 @@ export async function GET(request, { params }) {
     ws.getCell('A2').alignment = { horizontal: 'center' };
 
     ws.addRow([]);
-    const headerRow = ws.addRow(['#', 'Student ID', 'Student Name', 'Group', 'Status', 'Method', 'Scan Time']);
+    const headerRow = ws.addRow(['#', 'Student ID', 'Student Name', 'Group', 'Status', 'Method', 'Marked Time']);
     headerRow.eachCell(cell => Object.assign(cell, headerStyle));
     ws.columns = [{ width: 6 }, { width: 14 }, { width: 24 }, { width: 10 }, { width: 12 }, { width: 14 }, { width: 16 }];
 
     const methodLabel = (markedBy) => {
       switch (markedBy) {
         case 'self': return 'Self';
-        case 'qr': return 'QR Scan';
         case 'manual': return 'Manual';
         case 'search': return 'Search';
         default: return '-';
@@ -122,7 +135,7 @@ export async function GET(request, { params }) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="session_${params.sessionId}.xlsx"`,
+        'Content-Disposition': `attachment; filename="session_${sessionId}.xlsx"`,
       },
     });
   } catch (error) { return errorResponse(error); }

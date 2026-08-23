@@ -32,11 +32,11 @@ export async function PUT(request) {
     const body = await request.json();
     const { attendanceThreshold } = body;
     if (attendanceThreshold == null || isNaN(attendanceThreshold) || attendanceThreshold < 0 || attendanceThreshold > 100) {
-      return NextResponse.json({ success: false, message: 'Attendance threshold অবশ্যই ০ থেকে ১০০-এর মধ্যে একটি সংখ্যা হতে হবে' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Attendance threshold must be a number between 0 and 100' }, { status: 400 });
     }
     const settings = await getOrCreateSettings();
     settings.attendanceThreshold = Math.round(attendanceThreshold);
     await settings.save();
-    return NextResponse.json({ success: true, message: 'Settings সংরক্ষিত হয়েছে', settings: { attendanceThreshold: settings.attendanceThreshold } });
+    return NextResponse.json({ success: true, message: 'Settings saved', settings: { attendanceThreshold: settings.attendanceThreshold } });
   } catch (error) { return errorResponse(error); }
 }

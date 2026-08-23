@@ -25,7 +25,7 @@ export default function HomePage() {
           </svg>
         </div>
         <div className="spinner" />
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, letterSpacing: 0.4 }}>লোড হচ্ছে...</p>
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, letterSpacing: 0.4 }}>Loading...</p>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ export const metadata = {
     default: 'PolyAttend — Thakurgaon Polytechnic Institute',
     template: '%s | PolyAttend',
   },
-  description: 'PolyAttend হলো Thakurgaon Polytechnic Institute (TPI)-এর জন্য তৈরি একটি Smart QR-based Attendance Management System। Teacher ও Student দের জন্য সহজ ও দ্রুত অনলাইন হাজিরা (attendance) ট্র্যাকিং, ডিজিটাল উপস্থিতি ব্যবস্থাপনা এবং রিয়েল-টাইম রিপোর্টিং সুবিধা।',
+  description: 'PolyAttend is a Smart Attendance Management System built for Thakurgaon Polytechnic Institute (TPI). Easy and fast online attendance tracking for Teachers and Students, digital attendance management, and real-time reporting.',
   keywords: [
     // Brand
     'PolyAttend',
@@ -22,7 +22,6 @@ export const metadata = {
     'TPI login',
     'TPI portal',
     'TPI app',
-    'TPI QR',
     'TPI student',
     'TPI teacher',
     'TPI hazira',
@@ -39,27 +38,22 @@ export const metadata = {
     'Thakurgaon Polytechnic attendance',
     'Thakurgaon Polytechnic login',
     'Thakurgaon Polytechnic student',
-    'Thakurgaon Polytechnic QR',
     'Thakurgaon Polytechnic app',
     'Thakurgaon Polytechnic portal',
     'Thakurgaon Polytechnic hazira',
     'Thakurgaon Polytechnic CST',
-    'Thakurgaon Polytechnic QR attendance',
 
-    // Bengali variants
-    'ঠাকুরগাঁও পলিটেকনিক',
-    'ঠাকুরগাঁও পলিটেকনিক ইনস্টিটিউট',
-    'ঠাকুরগাঁও পলিটেকনিক হাজিরা',
-    'ঠাকুরগাঁও পলিটেকনিক লগইন',
-    'ঠাকুরগাঁও পলিটেকনিক অ্যাটেন্ডেন্স',
-    'ঠাকুরগাঁও পলিটেকনিক attendance system',
-    'ঠাকুরগাঁও পলিটেকনিক অ্যাপ',
-    'ঠাকুরগাঁও পলিটেকনিক ছাত্র',
-    'পলিটেকনিক হাজিরা সিস্টেম',
-    'পলিটেকনিক অনলাইন হাজিরা',
-    'পলিটেকনিক QR হাজিরা',
-    'অনলাইন হাজিরা ব্যবস্থা',
-    'ডিজিটাল উপস্থিতি পলিটেকনিক',
+    // Bengali-region name variants (transliterated to English)
+    'Thakurgaon Polytechnic',
+    'Thakurgaon Polytechnic Institute hazira',
+    'Thakurgaon Polytechnic login',
+    'Thakurgaon Polytechnic attendance system',
+    'Thakurgaon Polytechnic app',
+    'Thakurgaon Polytechnic student',
+    'Polytechnic hazira system',
+    'Polytechnic online hazira',
+    'Online hazira system',
+    'Digital attendance polytechnic',
 
     // Attendance generic
     'attendance system',
@@ -84,18 +78,6 @@ export const metadata = {
     'attendance checker',
     'attendance calculator',
     'daily attendance',
-
-    // QR based
-    'QR attendance',
-    'QR code attendance',
-    'QR attendance system',
-    'QR attendance app',
-    'QR code hazira',
-    'QR code hazira system',
-    'QR scan attendance',
-    'QR based attendance system',
-    'QR login system',
-    'QR code attendance system for college',
 
     // Polytechnic generic
     'polytechnic attendance',
@@ -126,9 +108,9 @@ export const metadata = {
     'polytechnic CST',
 
     // Action / intent keywords
-    'attendance system কিভাবে চেক করব',
-    'TPI attendance কিভাবে দেখব',
-    'ঠাকুরগাঁও পলিটেকনিক এর অ্যাটেন্ডেন্স সিস্টেম কিভাবে চেক করব',
+    'how to check attendance system',
+    'how to see TPI attendance',
+    'how to check Thakurgaon Polytechnic attendance system',
     'polytechnic hazira app',
     'attendance app download',
     'TPI app download',
@@ -148,7 +130,7 @@ export const metadata = {
   metadataBase: new URL('https://polyattend-system2026.vercel.app'),
   openGraph: {
     title: 'PolyAttend — Thakurgaon Polytechnic Institute',
-    description: 'Smart QR-based Attendance Management System for TPI. Teacher ও Student দের জন্য সহজ ও দ্রুত attendance tracking।',
+    description: 'Smart Attendance Management System for TPI. Easy and fast attendance tracking for Teachers and Students.',
     url: 'https://polyattend-system2026.vercel.app',
     siteName: 'PolyAttend',
     locale: 'en_US',

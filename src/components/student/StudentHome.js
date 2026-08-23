@@ -79,7 +79,7 @@ export default function StudentHome() {
         <div className="info-banner warn-banner mb-3">
           <Icon name="alert" size={16} />
           <span className="info-text">
-            <strong>{lowAtt.length}টি subject</strong>-এ attendance {threshold}%-এর নিচে — এই subject-এ exam দিতে পারবেন না। এখনই উপস্থিত থাকুন!
+            <strong>{lowAtt.length} subject(s)</strong> have attendance below {threshold}% — you cannot sit for the exam in these subjects. Attend class now!
           </span>
         </div>
       )}
@@ -87,7 +87,7 @@ export default function StudentHome() {
       <div className="section-title">Subject-wise Attendance</div>
       <div className="card mb-3">
         {(summary?.summary || []).length === 0 ? (
-          <div className="empty"><p>কোনো attendance record নেই এখনও।</p></div>
+          <div className="empty"><p>No attendance records yet.</p></div>
         ) : (summary?.summary || []).map((s, i) => {
           const pct = s.percentage;
           const color = pct >= 75 ? 'var(--primary)' : pct >= 60 ? 'var(--accent)' : 'var(--danger)';
@@ -115,7 +115,7 @@ export default function StudentHome() {
                   padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                 }}>
                   <Icon name="alert" size={14} />
-                  আপনি এই subject-এ exam দিতে পারবেন না, attendance {pct}%
+                  You cannot sit for the exam in this subject, attendance {pct}%
                 </div>
               )}
             </div>

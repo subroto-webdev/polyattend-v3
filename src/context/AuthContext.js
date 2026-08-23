@@ -22,6 +22,19 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
+    // Super Admin / Sub Admin / Semester Admin: no token yet — an OTP was
+    // just emailed and the caller (login page) must show the OTP step and
+    // call verifyLoginOtp() to actually get a token.
+    if (res.data.requiresOtp) {
+      return { requiresOtp: true, email: res.data.email };
+    }
+    localStorage.setItem('token', res.data.token);
+    setUser(res.data.user);
+    return res.data.user;
+  };
+
+  const verifyLoginOtp = async (email, otp) => {
+    const res = await api.post('/auth/verify-login-otp', { email, otp });
     localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
     return res.data.user;
@@ -33,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLoginOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

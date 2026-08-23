@@ -10,7 +10,7 @@ function VerifyEmailPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Router state থেকে email নাও (RegisterPage থেকে navigate করলে আসে)
+  // Get email from router state (comes when navigating from RegisterPage)
   // fallback: URL query string ?email=...
   const stateEmail = searchParams.get('email') || '';
   const prefillEmail = stateEmail;
@@ -34,33 +34,33 @@ function VerifyEmailPageInner() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !otp) return toast.error('ইমেইল এবং ভেরিফিকেশন OTP দিন');
-    if (otp.length < 6) return toast.error('OTP কমপক্ষে ৬ ডিজিটের হতে হবে');
+    if (!email || !otp) return toast.error('Enter email and verification OTP');
+    if (otp.length < 6) return toast.error('OTP must be at least 6 digits');
 
     setLoading(true);
     try {
       await api.post('/auth/verify-email', { email, otp });
-      toast.success('ইমেইল ভেরিফিকেশন সফল হয়েছে! 🎉');
+      toast.success('Email verification successful! 🎉');
       router.push('/login');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'ভেরিফিকেশন ব্যর্থ হয়েছে। OTP চেক করুন।');
+      toast.error(err.response?.data?.message || 'Verification failed. Please check the OTP.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (!email) return toast.error('আগে ইমেইল দিন');
+    if (!email) return toast.error('Enter email first');
     if (countdown > 0) return;
 
     setResending(true);
     try {
       await api.post('/auth/resend-verification', { email });
-      toast.success('নতুন OTP পাঠানো হয়েছে! ইমেইল চেক করুন 📧');
-      setCountdown(60); // ৬০ সেকেন্ড cooldown
+      toast.success('New OTP sent! Check your email 📧');
+      setCountdown(60); // 60 second cooldown
       setOtp('');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'OTP পাঠানো যায়নি, আবার চেষ্টা করুন');
+      toast.error(err.response?.data?.message || 'Could not send OTP, please try again');
     } finally {
       setResending(false);
     }
@@ -79,16 +79,16 @@ function VerifyEmailPageInner() {
           <div className="auth-logo-icon">
             <Icon name="mail" size={28} />
           </div>
-          <h1 className="auth-title">Email Verify করুন</h1>
+          <h1 className="auth-title">Verify Email</h1>
           <p className="auth-sub">
             {email
-              ? <><strong>{email}</strong>-এ একটি ৬ ডিজিটের কোড পাঠানো হয়েছে</>
-              : 'আপনার ইমেইলে পাঠানো OTP কোডটি দিন'}
+              ? <><strong>{email}</strong>-A 6-digit code has been sent to</>
+              : 'Enter the OTP code sent to your email'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Email — শুধু দেখায় যদি prefill না থাকে */}
+          {/* Email — only shown if not prefilled */}
           {!stateEmail && (
             <div className="form-group">
               <label className="form-label">Email Address</label>
@@ -120,7 +120,7 @@ function VerifyEmailPageInner() {
               style={{ letterSpacing: 8, fontSize: 20, textAlign: 'center' }}
             />
             <div style={{ fontSize: 12, color: 'var(--txt3)', marginTop: 6 }}>
-              ইমেইল না পেলে Spam/Junk folder চেক করুন
+              If you didn't receive the email, check your Spam/Junk folder
             </div>
           </div>
 
@@ -131,14 +131,14 @@ function VerifyEmailPageInner() {
             style={{ marginTop: 4 }}
           >
             {loading
-              ? <><div className="spinner spinner-sm" /> যাচাই করা হচ্ছে...</>
-              : 'Verify করুন →'}
+              ? <><div className="spinner spinner-sm" /> Verifying...</>
+              : 'Verify →'}
           </button>
         </form>
 
         {/* Resend OTP */}
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <span style={{ fontSize: 13, color: 'var(--txt2)' }}>কোড পাননি? </span>
+          <span style={{ fontSize: 13, color: 'var(--txt2)' }}>Didn't get the code? </span>
           <button
             type="button"
             onClick={handleResend}
@@ -151,16 +151,16 @@ function VerifyEmailPageInner() {
             }}
           >
             {resending
-              ? 'পাঠানো হচ্ছে...'
+              ? 'Sending...'
               : countdown > 0
-                ? `আবার পাঠান (${countdown}s)`
-                : 'আবার পাঠান'}
+                ? `Resend (${countdown}s)`
+                : 'Resend'}
           </button>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--txt2)' }}>
           <Link href="/login" style={{ color: 'var(--txt3)', textDecoration: 'none' }}>
-            ← Login-এ ফিরে যান
+            ← Back to Login
           </Link>
         </p>
 

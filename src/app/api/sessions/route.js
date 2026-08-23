@@ -3,6 +3,7 @@ import Session from '@/lib/models/Session';
 import User from '@/lib/models/User';
 import Subject from '@/lib/models/Subject';
 import { requireAuth, errorResponse } from '@/lib/auth';
+import { checkHoliday } from '@/lib/holidayCheck';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,20 @@ export async function POST(request) {
     const section = body?.section;
 
     if (!subjectId || semester == null || !section) {
-      return NextResponse.json({ success: false, message: 'Subject, semester ও section প্রয়োজন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Subject, semester and section are required' }, { status: 400 });
+    }
+
+    // MISTAKE FIX: Holiday declarations previously had no effect anywhere —
+    // an admin could mark a day off but sessions still started normally.
+    // Also, only Friday was auto-excluded; Saturday (also a normal college
+    // off-day here) was not. Both are now enforced at the point a session
+    // actually gets created.
+    const holidayResult = await checkHoliday(new Date());
+    if (holidayResult.isHoliday) {
+      const reasonText = holidayResult.reason === 'Friday' ? 'Today is Friday'
+        : holidayResult.reason === 'Saturday' ? 'Today is Saturday'
+        : `Today is a holiday (${holidayResult.holiday?.title || 'Declared Holiday'})`;
+      return NextResponse.json({ success: false, message: `${reasonText} — College is closed, so a Session cannot be started.` }, { status: 403 });
     }
 
     // Resolve department/shift from the Subject document itself (source of truth),
@@ -30,12 +44,12 @@ export async function POST(request) {
       if (!subject) return NextResponse.json({ success: false, message: 'You are not assigned to this subject' }, { status: 403 });
     } else {
       subject = await Subject.findById(subjectId);
-      if (!subject) return NextResponse.json({ success: false, message: 'Subject খুঁজে পাওয়া যায়নি' }, { status: 404 });
+      if (!subject) return NextResponse.json({ success: false, message: 'Subject not found' }, { status: 404 });
     }
 
     const departmentId = subject.departmentId;
     if (!departmentId) {
-      return NextResponse.json({ success: false, message: 'এই subject-এর কোনো valid Department নেই। Subject-টি Edit করে Department আবার সেট করুন।' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'This subject has no valid Department. Edit the Subject and set the Department again.' }, { status: 400 });
     }
     const subjectShift = subject.shift;
 
@@ -86,6 +100,18 @@ export async function GET(request) {
     if (semester) filter.semester = parseInt(semester);
     if (section) filter.section = section;
     if (status) filter.status = status;
+    // SCOPE ENFORCEMENT: Sub Admin/Semester Admin only ever see sessions
+    // within their own Department+Shift(+Semester) — same rule used
+    // everywhere else in this hierarchy.
+    if (auth.user.role === 'subAdmin') {
+      filter.departmentId = auth.user.departmentId;
+      filter.shift = auth.user.shift;
+    }
+    if (auth.user.role === 'semesterAdmin') {
+      filter.departmentId = auth.user.departmentId;
+      filter.shift = auth.user.shift;
+      filter.semester = auth.user.semester;
+    }
 
     const sessions = await Session.find(filter)
       .populate('teacherId', 'name').populate('departmentId', 'name code').populate('subjectId', 'name code')

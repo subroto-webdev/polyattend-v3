@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 import PendingRegistration from '@/lib/models/PendingRegistration';
+import StudentPreApproval from '@/lib/models/StudentPreApproval';
 import sendEmail from '@/lib/sendEmail';
 import { errorResponse } from '@/lib/auth';
+import { isStrongPassword } from '@/lib/validatePassword';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,35 +20,87 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
   await dbConnect();
   try {
-    const { name, email, password, role, studentId, departmentId, semester, section, shift, secretKey } = await request.json();
-    if (!['student', 'teacher'].includes(role)) {
-      return NextResponse.json({ success: false, message: 'Only student or teacher can register.' }, { status: 400 });
+    const { name, email, password, role, studentId, departmentId, semester, section, shift, preApprovalCode, mobile } = await request.json();
+
+    // RATE LIMIT: this endpoint checks a 12-digit preApprovalCode — this
+    // cap is what stops that code from being brute-forced, and also
+    // limits general signup-spam / DB-write / email-send abuse from a
+    // single IP or against a single email.
+    const limited = checkRateLimit(request, 'register-public', email, { limit: 8, windowMs: 15 * 60 * 1000 });
+    if (limited) {
+      return NextResponse.json({ success: false, message: limited.message }, { status: 429, headers: { 'Retry-After': String(limited.retryAfterSeconds) } });
+    }
+
+    // MISTAKE FIX: Teacher self-registration via a single shared
+    // TEACHER_SECRET_KEY (same value for everyone, anyone who learned it
+    // could become a Teacher with no admin approval) has been removed.
+    // Teachers are now only created through the Semester Admin → Teacher
+    // invite flow (12-digit code, scoped to a specific Department/Shift/
+    // Semester/Group/Subject). This route now only handles Student
+    // self-registration.
+    if (role !== 'student') {
+      return NextResponse.json({ success: false, message: 'Only Students can register here. Teacher accounts are created via an invite sent by your Semester Admin.' }, { status: 400 });
     }
     if (!name || !email || !password || !role) {
-      return NextResponse.json({ success: false, message: 'Name, Email, Password ও role দিন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Enter Name, Email, Password and role' }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ success: false, message: 'Password কমপক্ষে ৬ অক্ষরের হতে হবে' }, { status: 400 });
+    const pwCheck = isStrongPassword(password);
+    if (!pwCheck.ok) {
+      return NextResponse.json({ success: false, message: pwCheck.message }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
 
     // Already a real, registered account?
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return NextResponse.json({ success: false, message: 'এই email দিয়ে আগেই account আছে' }, { status: 400 });
+    if (existing) return NextResponse.json({ success: false, message: 'An account already exists with this email' }, { status: 400 });
 
-    if (role === 'teacher') {
-      if (!secretKey) return NextResponse.json({ success: false, message: 'Teacher Secret Key দিন' }, { status: 403 });
-      if (secretKey !== process.env.TEACHER_SECRET_KEY) return NextResponse.json({ success: false, message: 'Secret Key সঠিক নয়!' }, { status: 403 });
-      if (!shift) return NextResponse.json({ success: false, message: 'Shift দিন' }, { status: 400 });
+    if (!studentId || !departmentId || !semester || !section || !shift) {
+      return NextResponse.json({ success: false, message: 'Enter Student ID, Department, Semester, Group and Shift' }, { status: 400 });
+    }
+    // SECURITY: mobile was previously optional and only checked on the
+    // frontend — a direct API call could skip it entirely. Now enforced
+    // server-side too, since client-side validation alone can always be
+    // bypassed.
+    if (!mobile || !mobile.trim()) {
+      return NextResponse.json({ success: false, message: 'Mobile Number is required' }, { status: 400 });
+    }
+    if (!/^01[0-9]{9}$/.test(mobile.trim())) {
+      return NextResponse.json({ success: false, message: 'Enter a valid 11-digit mobile number (e.g. 01XXXXXXXXX)' }, { status: 400 });
+    }
+    const existingStudent = await User.findOne({ studentId });
+    if (existingStudent) return NextResponse.json({ success: false, message: 'This Student ID is already registered' }, { status: 400 });
+
+    // VALIDATION: a student can only register with a Roll+Email that a
+    // Semester Admin pre-approved (single entry or bulk Excel upload) and
+    // the matching 12-digit code — this is what stops one person
+    // registering multiple times under different emails, since only
+    // whitelisted Roll+Email pairs are ever accepted here. Once a
+    // pre-approval is used it's marked used and can never register again.
+    if (!preApprovalCode) {
+      return NextResponse.json({ success: false, message: 'Enter the 12-digit Registration Code sent by your Semester Admin' }, { status: 400 });
+    }
+    const preApproval = await StudentPreApproval.findOne({
+      roll: studentId.trim(),
+      email: normalizedEmail,
+      code: preApprovalCode.trim().toUpperCase(),
+      used: false,
+      codeExpire: { $gt: new Date() },
+    });
+    if (!preApproval) {
+      return NextResponse.json({ success: false, message: 'Roll, Email or Code does not match, or the Code has expired. Please contact your Semester Admin.' }, { status: 400 });
     }
 
-    if (role === 'student') {
-      if (!studentId || !departmentId || !semester || !section || !shift) {
-      return NextResponse.json({ success: false, message: 'Student ID, Department, Semester, Group ও Shift দিন' }, { status: 400 });
-      }
-      const existingStudent = await User.findOne({ studentId });
-      if (existingStudent) return NextResponse.json({ success: false, message: 'এই Student ID আগেই registered' }, { status: 400 });
+    // The Semester Admin's pre-approval is the source of truth for
+    // department/semester/shift (see below) — but if what the student
+    // picked in the form doesn't match it at all, that's worth surfacing
+    // rather than silently switching them into a different scope than
+    // they expected.
+    if (String(preApproval.departmentId) !== String(departmentId) || String(preApproval.semester) !== String(semester) || preApproval.shift !== shift) {
+      return NextResponse.json({
+        success: false,
+        message: 'Your selected Department/Semester/Shift does not match what was set for your Roll. Please select the correct Department/Semester/Shift, or contact your Semester Admin.',
+      }, { status: 400 });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -54,15 +109,22 @@ export async function POST(request) {
     // Replace any earlier, never-verified attempt for this email with a fresh one.
     await PendingRegistration.deleteMany({ email: normalizedEmail });
 
+    // BUG FIX: previously this used the department/semester/shift the
+    // student themselves picked in the registration form's dropdowns —
+    // never checked against what the Semester Admin actually pre-approved.
+    // A wrong dropdown pick (or a stale default) silently created the
+    // account in the wrong scope, so it never matched any Sub Admin's or
+    // Semester Admin's filter (only the unscoped Super Admin saw it). The
+    // pre-approval entry is the source of truth for these three fields —
+    // the student's own selection is now ignored for them, and `section`
+    // (Group) is the only one still taken from the form since pre-approval
+    // doesn't record a Group.
     const pending = await PendingRegistration.create({
-      name, email: normalizedEmail, password, role,
-      studentId: role === 'student' ? studentId : undefined,
-      departmentId: role === 'student' ? departmentId : undefined,
-      semester: role === 'student' ? parseInt(semester) : undefined,
-      section: role === 'student' ? section : undefined,
-      shift,
-      otp,
-      otpExpire,
+      name, email: normalizedEmail, password, role: 'student',
+      studentId, departmentId: preApproval.departmentId, semester: preApproval.semester, section, shift: preApproval.shift,
+      preApprovalId: preApproval._id,
+      mobile: mobile.trim(),
+      otp, otpExpire,
     });
 
     const subject = 'PolyAttend Email Verification Code';

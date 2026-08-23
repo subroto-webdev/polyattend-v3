@@ -60,7 +60,7 @@ export default function StudentAttendance() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <span className="att-p">✓ Present</span>
                             {r.markedBy === 'self' && (
-                              <span className="tag tag-amber" style={{ fontSize: 10, padding: '2px 6px' }} title="আপনি নিজে attendance দিয়েছিলেন">Self</span>
+                              <span className="tag tag-amber" style={{ fontSize: 10, padding: '2px 6px' }} title="You marked this attendance yourself">Self</span>
                             )}
                           </span>
                         )
@@ -80,14 +80,14 @@ export default function StudentAttendance() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">Attendance History</h2>
-        <p className="page-sub">Subject-wise বিস্তারিত দেখুন</p>
+        <p className="page-sub">View Subject-wise details</p>
       </div>
 
       {(summary?.summary || []).length === 0 ? (
         <div className="card">
           <div className="empty">
             <div className="empty-icon"><Icon name="clipboard" size={24} /></div>
-            <p>কোনো attendance record নেই।</p>
+            <p>No attendance records yet.</p>
           </div>
         </div>
       ) : (

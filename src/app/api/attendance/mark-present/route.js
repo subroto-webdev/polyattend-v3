@@ -14,8 +14,8 @@ function classNameFromSession(session) {
 }
 
 // POST /api/attendance/mark-present
-// NEW FEATURE: Teacher searches a student by name/ID during an active session
-// and marks them present manually, without needing to scan a QR code.
+// Teacher searches a student by name/ID during an active session and marks
+// them present manually.
 // Body: { sessionId, studentId }
 export async function POST(request) {
   const auth = await requireAuth(request, ['teacher', 'admin']);
@@ -23,7 +23,7 @@ export async function POST(request) {
   try {
     const { sessionId, studentId } = await request.json();
     if (!sessionId || !studentId) {
-      return NextResponse.json({ success: false, message: 'sessionId ও studentId দিন' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Enter sessionId and studentId' }, { status: 400 });
     }
 
     const session = await Session.findById(sessionId).populate('subjectId', 'shift');
@@ -42,7 +42,7 @@ export async function POST(request) {
     if (sessionShift && student.shift !== sessionShift) {
       return NextResponse.json({
         success: false,
-        message: `${student.name} এই shift-এর student নয় (Student: ${student.shift} Shift, Class: ${sessionShift} Shift)`,
+        message: `${student.name} is not a student of this shift (Student: ${student.shift} Shift, Class: ${sessionShift} Shift)`,
       }, { status: 400 });
     }
 
@@ -54,7 +54,7 @@ export async function POST(request) {
     if (classMismatch) {
       return NextResponse.json({
         success: false,
-        message: `${student.name} এই class-এর student নয় (${session.semester}-${session.section} section)`,
+        message: `${student.name} is not a student of this class (${session.semester}-${session.section} section)`,
       }, { status: 400 });
     }
 
@@ -63,7 +63,7 @@ export async function POST(request) {
       if (existing.status === 'present') {
         return NextResponse.json({
           success: false,
-          message: `${student.name} ইতিমধ্যে present marked`,
+          message: `${student.name} is already marked present`,
           student: { name: student.name, studentId: student.studentId },
         }, { status: 400 });
       }

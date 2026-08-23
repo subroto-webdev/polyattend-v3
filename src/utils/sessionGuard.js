@@ -1,8 +1,8 @@
 'use client';
 
 // ── FEATURE: Active-session exit guard (HARD BLOCK, no skip option) ───────
-// While a teacher has a live Attendance Session running (Manual Attendance
-// OR QR Scanner), they must NOT be able to leave the page — via in-app
+// While a teacher has a live Attendance Session running (Manual Attendance),
+// they must NOT be able to leave the page — via in-app
 // navigation, Logout, or the Back button — without properly ending the
 // session first. This used to be a skippable confirm() dialog ("leave
 // anyway?"), which defeats the purpose since a teacher could just click
@@ -42,9 +42,9 @@ export function isSessionGuardActive() {
 export function blockIfSessionActive() {
   if (!activeGuard) return false; // nothing active, nothing to block
   window.alert(
-    `🔒 "${activeGuard.label}" Session এখনও চলছে!\n\n` +
-    `আগে Session Save করুন অথবা Session End করুন।\n\n` +
-    `Session শেষ (End Session বাটনে ক্লিক) না করা পর্যন্ত এই পেজ থেকে বের হওয়া যাবে না।`
+    `🔒 "${activeGuard.label}" Session is still ongoing!\n\n` +
+    `Save the Session first or End the Session.\n\n` +
+    `You cannot leave this page until the Session ends (click End Session).`
   );
   return true; // blocked
 }

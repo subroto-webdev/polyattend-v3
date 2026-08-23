@@ -5,39 +5,40 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 import Icon from '@/components/common/Icon';
+import { isStrongPassword } from '@/lib/validatePassword';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function getPasswordStrength(pw) {
   if (!pw) return null;
   let score = 0;
-  if (pw.length >= 6) score++;
-  if (pw.length >= 10) score++;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { label: 'দুর্বল Password', color: '#ef4444', width: '34%' };
-  if (score <= 3) return { label: 'মাঝারি Password', color: '#f59e0b', width: '67%' };
-  return { label: 'শক্তিশালী Password', color: '#22c55e', width: '100%' };
+  if (score <= 2) return { label: 'Weak Password', color: '#ef4444', width: '34%' };
+  if (score <= 4) return { label: 'Medium Password', color: '#f59e0b', width: '67%' };
+  return { label: 'Strong Password', color: '#22c55e', width: '100%' };
 }
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState('student');
+  const role = 'student';
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [showSecretKey, setShowSecretKey] = useState(false);
   const [form, setForm] = useState({
     name: '', email: '', password: '',
     shift: '', studentId: '', departmentId: '', semester: '', section: '',
-    secretKey: ''
+    preApprovalCode: '', mobile: '',
   });
 
-  // ছোট derived values — শুধুমাত্র UI hint/animation এর জন্য, submit validation যেমন ছিল তেমনই আছে
+  // Small derived values — only for UI hint/animation, submit validation stays as-is
   const nameValid = form.name.trim().length > 0;
   const emailValid = EMAIL_REGEX.test(form.email);
-  const passwordValid = form.password.length >= 6;
+  const passwordValid = isStrongPassword(form.password).ok;
   const strength = getPasswordStrength(form.password);
 
   useEffect(() => {
@@ -47,23 +48,23 @@ export default function RegisterPage() {
   const set = field => e => setForm(p => ({ ...p, [field]: e.target.value }));
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) return toast.error('Name, Email ও Password আবশ্যক');
-    if (!EMAIL_REGEX.test(form.email)) return toast.error('সঠিক Email ঠিকানা দিন');
-    if (form.password.length < 6) return toast.error('Password কমপক্ষে ৬ অক্ষর হতে হবে');
-    if (role === 'teacher') {
-      if (!form.shift) return toast.error('Shift দিন');
-      if (!form.secretKey) return toast.error('Teacher Secret Key দিন'); // শুধু empty check
+    if (!form.name || !form.email || !form.password) return toast.error('Name, Email and Password are required');
+    if (!EMAIL_REGEX.test(form.email)) return toast.error('Enter a valid Email address');
+    const pwCheck = isStrongPassword(form.password);
+    if (!pwCheck.ok) return toast.error(pwCheck.message);
+    if (!form.studentId || !form.departmentId || !form.semester || !form.section || !form.shift) {
+      return toast.error('Enter Student ID, Department, Semester, Group and Shift');
     }
-    if (role === 'student' && (!form.studentId || !form.departmentId || !form.semester || !form.section || !form.shift)) {
-      return toast.error('Student ID, Department, Semester, Group ও Shift দিন');
-    }
+    if (!form.mobile.trim()) return toast.error('Mobile Number is required');
+    if (!/^01[0-9]{9}$/.test(form.mobile.trim())) return toast.error('Enter a valid 11-digit mobile number (e.g. 01XXXXXXXXX)');
+    if (!form.preApprovalCode) return toast.error('Enter the Registration Code sent by your Semester Admin');
     setLoading(true);
     try {
       await api.post('/auth/register-public', { ...form, role });
-      toast.success('Registration সফল! Email verify করুন 📧');
+      toast.success('Registration successful! Please verify your Email 📧');
       router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed'); // backend error এখানে দেখাবে
+      toast.error(err.response?.data?.message || 'Registration failed'); // backend error shown here
     } finally { setLoading(false); }
   };
 
@@ -72,8 +73,8 @@ export default function RegisterPage() {
       <label className="form-label">Shift *</label>
       <div style={{ display: 'flex', gap: 10 }}>
         {[
-          { value: '1st', label: '🌅 1st Shift' },
-          { value: '2nd', label: '🌙 2nd Shift' }
+          { value: '1st', label: '🌅 Morning Shift' },
+          { value: '2nd', label: '🌙 Day Shift' }
         ].map(s => {
           const selected = form.shift === s.value;
           return (
@@ -102,7 +103,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page rp-page" style={{ alignItems: 'flex-start', paddingTop: 24, paddingBottom: 24 }}>
-      <style>{`
+      <style suppressHydrationWarning>{`
         @keyframes rpFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes rpFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
         @keyframes rpPopIn { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
@@ -169,44 +170,21 @@ export default function RegisterPage() {
       <div className="auth-card rp-card-animate" style={{ maxWidth: 420 }}>
         <div className="auth-logo">
           <div className="auth-logo-icon rp-logo-float"><Icon name="school" size={28} /></div>
-          <h1 className="auth-title">নতুন Account</h1>
-          <p className="auth-sub">PolyAttend-এ যোগ দিন</p>
+          <h1 className="auth-title">New Account</h1>
+          <p className="auth-sub">Join PolyAttend</p>
         </div>
 
-        {/* Role Selector */}
-        <div className="rp-anim-field" style={{ display: 'flex', gap: 10, marginBottom: 20, animationDelay: '0ms' }}>
-          {[
-            { value: 'student', label: '🎓 Student', sub: 'Class attendance দেখুন' },
-            { value: 'teacher', label: '👨‍🏫 Teacher', sub: 'Attendance নিন' },
-          ].map(r => {
-            const selected = role === r.value;
-            return (
-              <button key={r.value} type="button"
-                className={`rp-role-btn${selected ? ' is-selected' : ''}`}
-                onClick={() => { setRole(r.value); setForm(p => ({ ...p, shift: '', secretKey: '' })); }}
-                style={{
-                  flex: 1, padding: '10px 12px', textAlign: 'left',
-                  border: `2px solid ${selected ? 'var(--primary)' : 'var(--border2)'}`,
-                  borderRadius: 10,
-                  background: selected ? 'var(--primary-light)' : 'var(--bg)',
-                  cursor: 'pointer', fontFamily: 'inherit'
-                }}
-              >
-                <div style={{ fontSize: 14, fontWeight: 700, color: selected ? 'var(--primary)' : 'var(--txt)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {r.label}
-                  {selected && <span className="rp-check">✓</span>}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>{r.sub}</div>
-              </button>
-            );
-          })}
-        </div>
+        {/* MISTAKE FIX: Teacher self-registration (role selector + secret key)
+            removed. Teacher accounts are now created only via a
+            Semester Admin invite. This page now handles Student
+            self-registration only. */}
+        <p className="auth-sub" style={{ marginBottom: 20 }}>🎓 Student Registration</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group rp-anim-field" style={{ animationDelay: '60ms' }}>
-            <label className="form-label">পূর্ণ নাম *</label>
+            <label className="form-label">Full Name *</label>
             <div className="rp-input-wrap">
-              <input className="form-input" placeholder="আপনার পূর্ণ নাম" value={form.name} onChange={set('name')} required style={{ paddingRight: 36 }} />
+              <input className="form-input" placeholder="Your full name" value={form.name} onChange={set('name')} required style={{ paddingRight: 36 }} />
               {nameValid && <span className="rp-check" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>✓</span>}
             </div>
           </div>
@@ -229,7 +207,7 @@ export default function RegisterPage() {
             </div>
             {form.email && !emailValid && (
               <span className="rp-inline-error" style={{ color: 'red', fontSize: '13px', marginTop: '4px', display: 'block' }}>
-                সঠিক Email ঠিকানা দিন
+                Enter a valid Email address
               </span>
             )}
           </div>
@@ -240,7 +218,7 @@ export default function RegisterPage() {
               <input
                 className="form-input"
                 type={showPass ? 'text' : 'password'}
-                placeholder="কমপক্ষে ৬ অক্ষর"
+                placeholder="At least 8 characters, with upper&lowercase and a number"
                 value={form.password}
                 onChange={set('password')}
                 required
@@ -266,39 +244,6 @@ export default function RegisterPage() {
             )}
           </div>
 
-          {/* Teacher Section */}
-          {role === 'teacher' && (
-            <div key="teacher-section" className="rp-section-enter">
-              <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '14px 0' }} />
-              <div style={{ fontSize: 18, fontWeight: 600, color: '#4ade80', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 }}>Teacher Information</div>
-              <ShiftSelector />
-              {/* ✅ Secret Key Field */}
-              <div className="form-group">
-                <label className="form-label">Teacher Secret Key *</label>
-                <div className="rp-input-wrap">
-                  <input
-                    className="form-input"
-                    type={showSecretKey ? 'text' : 'password'}
-                    placeholder="Admin প্রদত্ত Secret Key"
-                    value={form.secretKey}
-                    onChange={set('secretKey')}
-                    required
-                    style={{ paddingRight: 42 }}
-                  />
-                  <button type="button" className="rp-eye-btn" onClick={() => setShowSecretKey(p => !p)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt3)' }}>
-                    <span className="rp-eye-spin" style={{ transform: showSecretKey ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-                      <Icon name="eye" size={16} />
-                    </span>
-                  </button>
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 4, display: 'block' }}>
-                  🔐 শুধুমাত্র অনুমোদিত Teacher রা register করতে পারবেন
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Student Section */}
           {role === 'student' && (
             <div key="student-section" className="rp-section-enter">
@@ -306,12 +251,40 @@ export default function RegisterPage() {
               <div style={{ fontSize: 18, fontWeight: 600, color: '#4ade80', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 }}>Student Information</div>
               <div className="form-group">
                 <label className="form-label">Student Roll</label>
-                <input className="form-input" placeholder="যেমন: 800768" value={form.studentId} onChange={set('studentId')} required />
+                <input className="form-input" placeholder="e.g. 800768" value={form.studentId} onChange={set('studentId')} required />
+              </div>
+              <div className="form-group rp-anim-field" style={{ animationDelay: '220ms' }}>
+                <label className="form-label">Mobile Number *</label>
+                <input
+                  className="form-input"
+                  type="tel"
+                  placeholder="01XXXXXXXXX"
+                  value={form.mobile}
+                  onChange={set('mobile')}
+                  required
+                  style={{ letterSpacing: 1 }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 4, display: 'block' }}>
+                  Only admins will see this number, for contact purposes
+                </span>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Registration Code *</label>
+                <input
+                  className="form-input" placeholder="12-digit code (sent to your email)"
+                  value={form.preApprovalCode}
+                  onChange={e => setForm(p => ({ ...p, preApprovalCode: e.target.value.toUpperCase() }))}
+                  required maxLength={12}
+                  style={{ letterSpacing: 2, fontFamily: 'monospace' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 4, display: 'block' }}>
+                  Your Semester Admin sent this code to this Roll + Email. Check your Spam folder.
+                </span>
               </div>
               <div className="form-group">
                 <label className="form-label">Department *</label>
                 <select className="form-select" value={form.departmentId} onChange={set('departmentId')} required>
-                  <option value="">-- Department বেছে নিন --</option>
+                  <option value="">-- Select Department --</option>
                   {departments.map(d => <option key={d._id} value={d._id}>{d.name} ({d.code})</option>)}
                 </select>
               </div>
@@ -336,13 +309,17 @@ export default function RegisterPage() {
           )}
 
           <button className="btn-primary rp-submit" type="submit" disabled={loading} style={{ marginTop: 8 }}>
-            {loading ? <><div className="spinner spinner-sm" /> Registration হচ্ছে...</> : 'Register করুন →'}
+            {loading ? <><div className="spinner spinner-sm" /> Registering...</> : 'Register →'}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--txt2)' }}>
-          আগেই account আছে?{' '}
-          <Link href="/login" className="rp-login-link" style={{ color: 'var(--primary)', fontWeight: 600 }}>Login করুন</Link>
+          Already have an account?{' '}
+          <Link href="/login" className="rp-login-link" style={{ color: 'var(--primary)', fontWeight: 600 }}>Login</Link>
+        </p>
+        <p style={{ textAlign: 'center', marginTop: 8, fontSize: 12.5, color: 'var(--txt3)' }}>
+          Sub Admin / Semester Admin / Teacher?{' '}
+          <Link href="/admin-register" className="rp-login-link" style={{ color: 'var(--txt2)', fontWeight: 600 }}>Admin Registration</Link>
         </p>
       </div>
     </div>
