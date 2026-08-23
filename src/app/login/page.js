@@ -156,14 +156,30 @@ export default function LoginPage() {
 
         {/* Download App Button */}
         <a
-          href="https://github.com/subroto-webdev/Polyattend-Next.jsapp/releases/download/v1.0.0/app-debug.apk"
-          download
+          href="/downloads/app-debug.apk"
+          download="PolyAttend.apk"
           className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full text-[12px] font-bold text-emerald-300 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all duration-200"
-          style={{ animation: 'fadeUp 0.5s ease both', animationDelay: '3.5s', opacity: 0 }}
+          style={{
+            animation: 'fadeUp 0.5s ease both',
+            animationDelay: '3.5s',
+            opacity: 0
+          }}
         >
-          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            width="13"
+            height="13"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
+
           Download Android App
         </a>
       </div>
@@ -189,28 +205,28 @@ export default function LoginPage() {
 
         {/* Role Tabs */}
         {!otpStep && (
-        <div className="flex p-1 rounded-xl mb-6 gap-4 login-field-anim"
-          style={{ animationDelay: "80ms", background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          {[
-            { key: 'student', label: '🎓 STUDENT' },
-            { key: 'teacher', label: '👨‍🏫 TEACHER' },
-          ].map(r => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setActiveRole(r.key)}
-              className={`flex-1 py-2.5 rounded-[9px] text-white/100 text-[11px] font-bold tracking-[0.8px] transition-all duration-200 border ${activeRole === r.key
+          <div className="flex p-1 rounded-xl mb-6 gap-4 login-field-anim"
+            style={{ animationDelay: "80ms", background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            {[
+              { key: 'student', label: '🎓 STUDENT' },
+              { key: 'teacher', label: '👨‍🏫 TEACHER' },
+            ].map(r => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setActiveRole(r.key)}
+                className={`flex-1 py-2.5 rounded-[9px] text-white/100 text-[11px] font-bold tracking-[0.8px] transition-all duration-200 border ${activeRole === r.key
 
-                }`}
-              style={activeRole === r.key ? {
-                background: 'linear-gradient(135deg, rgba(22,163,74,0.2), rgba(74,222,128,0.1))',
-                boxShadow: '0 2px 14px rgba(22,163,74,0.12)'
-              } : {}}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+                  }`}
+                style={activeRole === r.key ? {
+                  background: 'linear-gradient(135deg, rgba(22,163,74,0.2), rgba(74,222,128,0.1))',
+                  boxShadow: '0 2px 14px rgba(22,163,74,0.12)'
+                } : {}}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {otpStep ? (
@@ -260,76 +276,76 @@ export default function LoginPage() {
             </button>
           </form>
         ) : (
-        <form onSubmit={handleSubmit}>
-          {/* Email */}
-          <div className="mb-4 relative login-field-anim" style={{ animationDelay: "140ms" }}>
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 flex pointer-events-none z-10">
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            </span>
-            <input
-              type="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              autoComplete="email"
-              autoFocus
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white text-sm outline-none transition-all duration-300 placeholder:text-white/40 hover:border-emerald-500 hover:bg-emerald-500/10 focus:bg-emerald-500/15 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+          <form onSubmit={handleSubmit}>
+            {/* Email */}
+            <div className="mb-4 relative login-field-anim" style={{ animationDelay: "140ms" }}>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 flex pointer-events-none z-10">
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </span>
+              <input
+                type="email"
+                placeholder="Email"
+                value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                autoComplete="email"
+                autoFocus
+                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white text-sm outline-none transition-all duration-300 placeholder:text-white/40 hover:border-emerald-500 hover:bg-emerald-500/10 focus:bg-emerald-500/15 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
 
-            />
-          </div>
+              />
+            </div>
 
-          {/* Password */}
-          <div className="mb-3 relative login-field-anim" style={{ animationDelay: "200ms" }}>
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 flex pointer-events-none z-10">
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="3" y="11" width="18" height="11" rx="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            </span>
-            <input
-              type={showPass ? 'text' : 'password'}
-              placeholder="Password"
-              value={form.password}
-              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-              autoComplete="current-password"
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border border-white/25 text-white text-sm outline-none transition-all duration-200 placeholder:text-white/38 hover:border-emerald-500/60 hover:bg-emerald-500/8 focus:bg-emerald-500/10 focus:border-emerald-400 focus:shadow-[0_0_0_2px_rgba(52,211,153,0.2)]"
-            />
+            {/* Password */}
+            <div className="mb-3 relative login-field-anim" style={{ animationDelay: "200ms" }}>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 flex pointer-events-none z-10">
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+              <input
+                type={showPass ? 'text' : 'password'}
+                placeholder="Password"
+                value={form.password}
+                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                autoComplete="current-password"
+                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border border-white/25 text-white text-sm outline-none transition-all duration-200 placeholder:text-white/38 hover:border-emerald-500/60 hover:bg-emerald-500/8 focus:bg-emerald-500/10 focus:border-emerald-400 focus:shadow-[0_0_0_2px_rgba(52,211,153,0.2)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(p => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors p-1 rounded"
+              >
+                <Icon name="eye" size={15} />
+              </button>
+            </div>
+
+            {/* Forgot */}
+            <div className="text-right mb-5">
+              <Link href="/forgot-password" className="text-teal-300/75 hover:text-teal-300 text-[12px] font-semibold no-underline transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
+
+            {/* Login Button */}
             <button
-              type="button"
-              onClick={() => setShowPass(p => !p)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors p-1 rounded"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-[9px] text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 login-submit-btn login-field-anim"
+              style={{
+                background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                boxShadow: '0 4px 20px rgba(22,163,74,0.3)',
+                fontFamily: 'inherit',
+                animationDelay: '260ms'
+              }}
             >
-              <Icon name="eye" size={15} />
+              {loading
+                ? <><div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Logging in...</>
+                : <>🔑 Login</>}
             </button>
-          </div>
-
-          {/* Forgot */}
-          <div className="text-right mb-5">
-            <Link href="/forgot-password" className="text-teal-300/75 hover:text-teal-300 text-[12px] font-semibold no-underline transition-colors">
-              Forgot Password?
-            </Link>
-          </div>
-
-          {/* Login Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 rounded-[9px] text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 login-submit-btn login-field-anim"
-            style={{
-              background: 'linear-gradient(135deg, #16a34a, #22c55e)',
-              boxShadow: '0 4px 20px rgba(22,163,74,0.3)',
-              fontFamily: 'inherit',
-              animationDelay: '260ms'
-            }}
-          >
-            {loading
-              ? <><div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Logging in...</>
-              : <>🔑 Login</>}
-          </button>
-        </form>
+          </form>
         )}
 
         <p className="text-center text-[13px] text-white/100 mt-5">
@@ -372,39 +388,39 @@ export default function LoginPage() {
 
         {/* Feedback Modal */}
         <Modal open={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} sheetStyle={{ maxWidth: 420 }}>
-              <div className="flex justify-between items-center mb-1">
-                <h3 className="modal-title" style={{ marginBottom: 0 }}>Need Help or Have Feedback?</h3>
-                <button onClick={() => setShowFeedbackModal(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt3)', display: 'flex', padding: 4 }}>
-                  <Icon name="close" size={18} />
-                </button>
-              </div>
-              <p className="text-[13px] text-[var(--txt2)] mb-4">Let us know if you have any login issues or feedback.</p>
-              <form onSubmit={handleFeedbackSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Your Name</label>
-                  <input type="text" required className="form-input" placeholder="John Doe"
-                    value={feedbackForm.name} onChange={e => setFeedbackForm(p => ({ ...p, name: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <input type="email" required className="form-input" placeholder="john@example.com"
-                    value={feedbackForm.email} onChange={e => setFeedbackForm(p => ({ ...p, email: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Your Message</label>
-                  <textarea required rows={4} className="form-input"
-                    placeholder="Describe your issue or feedback here..."
-                    style={{ resize: 'none', height: 'auto' }}
-                    value={feedbackForm.message} onChange={e => setFeedbackForm(p => ({ ...p, message: e.target.value }))} />
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>Cancel</button>
-                  <button type="submit" className="btn-primary" disabled={feedbackLoading}>
-                    {feedbackLoading ? <><div className="spinner spinner-sm" /> Submitting...</> : 'Submit Feedback'}
-                  </button>
-                </div>
-              </form>
+          <div className="flex justify-between items-center mb-1">
+            <h3 className="modal-title" style={{ marginBottom: 0 }}>Need Help or Have Feedback?</h3>
+            <button onClick={() => setShowFeedbackModal(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt3)', display: 'flex', padding: 4 }}>
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+          <p className="text-[13px] text-[var(--txt2)] mb-4">Let us know if you have any login issues or feedback.</p>
+          <form onSubmit={handleFeedbackSubmit}>
+            <div className="form-group">
+              <label className="form-label">Your Name</label>
+              <input type="text" required className="form-input" placeholder="John Doe"
+                value={feedbackForm.name} onChange={e => setFeedbackForm(p => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <input type="email" required className="form-input" placeholder="john@example.com"
+                value={feedbackForm.email} onChange={e => setFeedbackForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Your Message</label>
+              <textarea required rows={4} className="form-input"
+                placeholder="Describe your issue or feedback here..."
+                style={{ resize: 'none', height: 'auto' }}
+                value={feedbackForm.message} onChange={e => setFeedbackForm(p => ({ ...p, message: e.target.value }))} />
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={feedbackLoading}>
+                {feedbackLoading ? <><div className="spinner spinner-sm" /> Submitting...</> : 'Submit Feedback'}
+              </button>
+            </div>
+          </form>
         </Modal>
       </div>
     </div>
