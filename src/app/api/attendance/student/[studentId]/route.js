@@ -33,7 +33,8 @@ export async function GET(request, { params }) {
     const records = await Attendance.find(filter)
       .populate('subjectId', 'name code')
       .populate('sessionId', 'date startTime')
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
 
     const bySubject = {};
     records.forEach(r => {

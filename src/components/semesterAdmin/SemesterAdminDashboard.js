@@ -28,9 +28,13 @@ export default function SemesterAdminDashboard() {
 
   useEffect(() => {
     if (!user) return;
+    // PERFORMANCE: previously fetched the full teacher and student lists
+    // just to read `.count` off the response — downloading every one of
+    // this Semester Admin's students on every dashboard load. `countOnly`
+    // returns just the number, no documents.
     Promise.all([
-      api.get('/users', { params: { role: 'teacher' } }),
-      api.get('/users', { params: { role: 'student' } }),
+      api.get('/users', { params: { role: 'teacher', countOnly: true } }),
+      api.get('/users', { params: { role: 'student', countOnly: true } }),
       api.get('/semesterAdmin/students'),
     ]).then(([t, st, pre]) => {
       const entries = pre.data.entries || [];

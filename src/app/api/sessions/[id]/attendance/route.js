@@ -18,8 +18,18 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });
     }
 
-    for (const update of attendanceUpdates) {
-      await Attendance.findByIdAndUpdate(update.attendanceId, { status: update.status });
+    // FIX: আগে for...of loop-এ প্রতিটা update-এর জন্য আলাদা DB call হতো।
+    // ৩০ জন student হলে = ৩০টা sequential query।
+    // bulkWrite() দিয়ে সব update একটাই DB round-trip-এ শেষ।
+    if (attendanceUpdates?.length > 0) {
+      await Attendance.bulkWrite(
+        attendanceUpdates.map(u => ({
+          updateOne: {
+            filter: { _id: u.attendanceId },
+            update: { $set: { status: u.status } },
+          },
+        }))
+      );
     }
 
     const presentCount = await Attendance.countDocuments({ sessionId: session._id, status: 'present' });

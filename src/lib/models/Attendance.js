@@ -32,4 +32,17 @@ const attendanceSchema = new mongoose.Schema({
 
 attendanceSchema.index({ sessionId: 1, studentId: 1 }, { unique: true });
 
+// PERFORMANCE: this is by far the largest, fastest-growing collection (one
+// row per student per session). But the only index was the compound unique
+// one above, keyed by sessionId — useless for the two query shapes every
+// report route actually runs:
+//   - Attendance.find({ studentId })            -> /api/reports/student/[id]
+//   - Attendance.find({ subjectId })             -> /api/reports/subject/[id],
+//                                                    reports/class, dashboards
+// Without these, both queries were full collection scans, and got linearly
+// slower as attendance rows piled up over the semester — this was the
+// single biggest reason reports/exports and dashboards felt slow.
+attendanceSchema.index({ studentId: 1, date: -1 });
+attendanceSchema.index({ subjectId: 1, date: -1 });
+
 export default mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);

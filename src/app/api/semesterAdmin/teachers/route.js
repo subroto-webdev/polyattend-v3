@@ -29,7 +29,7 @@ export async function GET(request) {
     const scopeSubjects = await Subject.find({
       departmentId: auth.user.departmentId, shift: auth.user.shift, semester: auth.user.semester,
       teacherId: { $ne: null },
-    }).populate('teacherId', 'name email mobile isActive role').populate('departmentId', 'name code').select('teacherId name code section semester departmentId');
+    }).populate('teacherId', 'name email mobile isActive role').populate('departmentId', 'name code').select('teacherId name code section semester departmentId').lean();
 
     // Group by teacher so each Teacher shows once, with the list of
     // Subjects they teach specifically within this Semester Admin's scope.
@@ -45,7 +45,7 @@ export async function GET(request) {
         // subject, department, or semester info at all. Including `role`
         // here restores that. departmentId is populated too so the card
         // can show which department this teacher belongs to.
-        byTeacher.set(tId, { ...s.teacherId.toObject(), departmentId: s.departmentId, subjects: [] });
+        byTeacher.set(tId, { ...s.teacherId, departmentId: s.departmentId, subjects: [] });
       }
       byTeacher.get(tId).subjects.push({ _id: s._id, name: s.name, code: s.code, section: s.section, semester: s.semester });
     }
@@ -55,7 +55,7 @@ export async function GET(request) {
       role: 'teacher', departmentId: auth.user.departmentId,
       shift: auth.user.shift, semester: auth.user.semester,
       used: false, codeExpire: { $gt: new Date() },
-    }).sort({ section: 1 });
+    }).sort({ section: 1 }).lean();
 
     return NextResponse.json({ success: true, teachers, pendingInvites });
   } catch (error) { return errorResponse(error); }

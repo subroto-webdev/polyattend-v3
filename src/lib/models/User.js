@@ -76,4 +76,12 @@ userSchema.methods.toJSON = function () {
 // by far the largest User group.
 userSchema.index({ role: 1, departmentId: 1, shift: 1, semester: 1 });
 
+// PERFORMANCE: Take Attendance's student-roster fetch (and a few other
+// callers) additionally filters by `section` on top of the above — e.g. a
+// Semester might have Sections A/B/C/D, so without `section` in the index
+// MongoDB narrows via role/departmentId/shift/semester and then scans that
+// remaining group by hand for the matching section. Adding it here lets
+// the same query resolve directly from the index instead.
+userSchema.index({ role: 1, departmentId: 1, shift: 1, semester: 1, section: 1 });
+
 export default mongoose.models.User || mongoose.model('User', userSchema);

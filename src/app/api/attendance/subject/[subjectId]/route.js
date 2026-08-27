@@ -23,7 +23,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: 'Not your subject' }, { status: 403 });
     }
 
-    const sessions = await Session.find({ subjectId, status: 'ended' }).sort({ date: -1 });
+    const sessions = await Session.find({ subjectId, status: 'ended' }).sort({ date: -1 }).lean();
 
     const studentFilter = {
       role: 'student', departmentId: subject.departmentId, semester: subject.semester,
@@ -31,8 +31,8 @@ export async function GET(request, { params }) {
     };
     if (subject.shift) studentFilter.shift = subject.shift;
 
-    const students = await User.find(studentFilter).sort({ name: 1 });
-    const allAttendance = await Attendance.find({ subjectId });
+    const students = await User.find(studentFilter).sort({ name: 1 }).lean();
+    const allAttendance = await Attendance.find({ subjectId }).lean();
 
     const attMap = {};
     allAttendance.forEach(a => {

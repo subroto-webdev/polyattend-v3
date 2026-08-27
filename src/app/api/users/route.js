@@ -56,6 +56,20 @@ export async function GET(request) {
       filter.semester = auth.user.semester;
     }
 
+    // COUNT-ONLY (opt-in): callers that only need a number (e.g. the
+    // Admin Dashboard's "Students" / "Teachers" stat cards) previously had
+    // no way to ask for just that — they called this same route with no
+    // page/limit and got back the FULL matching document list (every
+    // student's name, email, department, etc.) just to read `.length`.
+    // With enrollment in the thousands, that meant downloading the entire
+    // roster on every single dashboard load. `countOnly=true` runs a plain
+    // countDocuments() and returns nothing else — no documents are ever
+    // fetched or sent.
+    if (searchParams.get('countOnly') === 'true') {
+      const total = await User.countDocuments(filter);
+      return NextResponse.json({ success: true, count: total, total });
+    }
+
     // PAGINATION (opt-in): the Users/Students management page can hold
     // every student in the college, so loading it all at once got slower
     // as enrollment grew. `page`/`limit` are optional — a caller that

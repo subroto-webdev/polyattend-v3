@@ -23,9 +23,18 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: 'This is not your session' }, { status: 403 });
     }
 
+    // FIX: `.sort({ 'studentId.name': 1 })` here never actually worked —
+    // Mongoose's `.sort()` runs as part of the database query, but
+    // `.populate()` only fills in `studentId` AFTER that query returns.
+    // At sort time `studentId` is still just an ObjectId with no `.name`
+    // to sort by, so MongoDB silently ignored it and returned attendance
+    // rows in whatever order they happened to be stored — not by name.
+    // Sorting on the already-populated result (after `.lean()`) instead
+    // actually sorts by the student's name, as intended.
     const attendance = await Attendance.find({ sessionId })
       .populate('studentId', 'name studentId section shift')
-      .sort({ 'studentId.name': 1 });
+      .lean();
+    attendance.sort((a, b) => (a.studentId?.name || '').localeCompare(b.studentId?.name || ''));
     return NextResponse.json({ success: true, count: attendance.length, attendance });
   } catch (error) { return errorResponse(error); }
 }

@@ -72,13 +72,23 @@ export default function TeacherTakeAttendance() {
       // If the session has a shift, fetch students of that shift
       if (sess.shift) params.shift = sess.shift;
 
-      const res = await api.get('/users', { params });
+      // PERFORMANCE: these two requests don't depend on each other — the
+      // student list only needs `sess` (department/semester/section), and
+      // the existing-attendance list only needs `sess._id`. This used to
+      // `await` them one after another, so "Start Attendance" waited for
+      // the full round-trip time of BOTH calls added together before the
+      // class list appeared. Firing them together with Promise.all cuts
+      // that wait roughly in half — the class list now appears as soon as
+      // the slower of the two finishes, not the sum of both.
+      const [res, attRes] = await Promise.all([
+        api.get('/users', { params }),
+        api.get(`/attendance/session/${sess._id}`),
+      ]);
       // Sorted in order by Roll (studentId) — students will appear
       // in the attendance list in roll-number order.
       const stds = sortByRoll(res.data.users || []);
       setStudents(stds);
       // Load existing attendance
-      const attRes = await api.get(`/attendance/session/${sess._id}`);
       const existing = {};
       (attRes.data.attendance || []).forEach(a => { if (a?.studentId?._id) existing[a.studentId._id] = { status: a.status, markedBy: a.markedBy }; });
       // Default remaining to 'absent' — teacher (or the student themself via

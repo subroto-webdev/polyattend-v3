@@ -4,7 +4,15 @@ import api from '@/utils/api';
 import Icon from '@/components/common/Icon';
 import { toast } from 'react-hot-toast';
 
-const POLL_MS = 8000;
+// PERFORMANCE: this polls every Student's dashboard for an active session.
+// At small scale 8s was fine, but with enrollment in the thousands, every
+// student who has their dashboard open (very common while a class is in
+// progress) fires a request this often — that adds up to steady, constant
+// database load network-wide, on top of everything else the app is doing.
+// 15s roughly halves that request volume while the actual experience is
+// unchanged: a class runs for tens of minutes, so a few extra seconds
+// before "Mark My Attendance" appears is not noticeable.
+const POLL_MS = 15000;
 
 // Always visible on the student dashboard. Has 3 states:
 //  1. No active session  -> button disabled, greyed out

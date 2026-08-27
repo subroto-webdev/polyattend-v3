@@ -8,7 +8,7 @@ export async function GET(request) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
   try {
-    const holidays = await Holiday.find().sort({ startDate: 1 });
+    const holidays = await Holiday.find().sort({ startDate: 1 }).lean();
     return NextResponse.json({ success: true, holidays });
   } catch (error) { return errorResponse(error); }
 }

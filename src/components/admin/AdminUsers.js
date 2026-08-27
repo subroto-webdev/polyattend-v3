@@ -4,6 +4,7 @@ import api from '@/utils/api';
 import Icon from '@/components/common/Icon';
 import toast from 'react-hot-toast';
 import Modal from '@/components/common/Modal';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Role config ────────────────────────────────────────────────
 const ROLE_META = {
@@ -314,11 +315,11 @@ export default function AdminUsers({
   title = 'Users Management',
   subtitle = 'Manage all system users',
 }) {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [currentUser, setCurrentUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -358,7 +359,6 @@ export default function AdminUsers({
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { api.get('/auth/me').then(r => setCurrentUser(r.data.user)); }, []);
   useEffect(() => { load(1); }, [roleFilter]);
 
   const handleSearch = (e) => { e.preventDefault(); load(1); };

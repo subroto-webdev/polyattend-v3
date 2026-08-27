@@ -101,9 +101,16 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    // PERFORMANCE: this used to call `/users?role=student` and
+    // `/users?role=teacher` with no limit, just to read `.count` off the
+    // response — but that meant downloading every student's and every
+    // teacher's full record (name, email, department, etc.) on every
+    // single dashboard load, for every admin, every time. `countOnly=true`
+    // runs a plain database count and returns just the number — no
+    // documents are fetched or sent over the network.
     Promise.all([
-      api.get('/users?role=student'),
-      api.get('/users?role=teacher'),
+      api.get('/users?role=student&countOnly=true'),
+      api.get('/users?role=teacher&countOnly=true'),
       api.get('/subjects'),
       api.get('/sessions'),
       api.get('/sessions?status=active'),

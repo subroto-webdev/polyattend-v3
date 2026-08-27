@@ -32,4 +32,12 @@ const sessionSchema = new mongoose.Schema({
 sessionSchema.index({ subjectId: 1, date: 1 });
 sessionSchema.index({ teacherId: 1, date: -1 });
 
+// PERFORMANCE: the Student Dashboard polls /api/attendance/active-session
+// repeatedly (to auto-show "Mark My Attendance" the moment a teacher
+// starts a session), which runs
+//   Session.findOne({ status: 'active', departmentId, semester, section, shift })
+// This is a hot, frequently-repeated query with no supporting index before
+// this — every poll from every student was a full collection scan.
+sessionSchema.index({ status: 1, departmentId: 1, semester: 1, section: 1 });
+
 export default mongoose.models.Session || mongoose.model('Session', sessionSchema);

@@ -54,7 +54,7 @@ export async function GET(request, { params }) {
       }
     }
 
-    const sessions = await Session.find({ subjectId: subject._id, status: 'ended' }).sort({ date: 1 });
+    const sessions = await Session.find({ subjectId: subject._id, status: 'ended' }).sort({ date: 1 }).lean();
 
     const studentFilter = {
       role: 'student', departmentId: subject.departmentId._id, semester: subject.semester,
@@ -62,9 +62,9 @@ export async function GET(request, { params }) {
     };
     if (subject.shift) studentFilter.shift = subject.shift;
 
-    const students = await User.find(studentFilter).sort({ name: 1 });
+    const students = await User.find(studentFilter).sort({ name: 1 }).lean();
 
-    const allAtt = await Attendance.find({ subjectId: subject._id });
+    const allAtt = await Attendance.find({ subjectId: subject._id }).lean();
     const attMap = {};
     allAtt.forEach(a => {
       const sid = a.studentId.toString();

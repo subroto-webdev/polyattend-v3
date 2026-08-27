@@ -28,7 +28,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: 'This session is outside your scope' }, { status: 403 });
     }
 
-    const attendance = await Attendance.find({ sessionId: session._id }).populate('studentId', 'name studentId section');
+    // PERFORMANCE: read-only, serialized straight to JSON — .lean() skips
+    // Mongoose document hydration for the whole attendance list.
+    const attendance = await Attendance.find({ sessionId: session._id }).populate('studentId', 'name studentId section').lean();
     return NextResponse.json({ success: true, session, attendance });
   } catch (error) { return errorResponse(error); }
 }

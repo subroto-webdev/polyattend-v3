@@ -50,7 +50,7 @@ export async function GET(request, { params }) {
       }
     }
 
-    const attendance = await Attendance.find({ sessionId: session._id }).populate('studentId', 'name studentId section');
+    const attendance = await Attendance.find({ sessionId: session._id }).populate('studentId', 'name studentId section').lean();
 
     const studentFilter = {
       role: 'student', departmentId: session.departmentId._id, semester: session.semester,
@@ -58,7 +58,7 @@ export async function GET(request, { params }) {
     };
     if (session.shift) studentFilter.shift = session.shift;
 
-    const allStudents = await User.find(studentFilter).sort({ studentId: 1 });
+    const allStudents = await User.find(studentFilter).sort({ studentId: 1 }).lean();
 
     const presentMap = {};
     attendance.forEach(a => { presentMap[a.studentId._id.toString()] = a; });

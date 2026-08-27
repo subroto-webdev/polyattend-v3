@@ -30,10 +30,16 @@ export default function SubAdminDashboard() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
+    // PERFORMANCE: the student count here only ever reads `.count` — it
+    // never touches `st.data.users` below, unlike the semesterAdmin/teacher
+    // calls (their user lists feed the "recent" list). So only the student
+    // call needs to become `countOnly` — that's the one whose full roster
+    // download was pure waste (and, with thousands of students, the
+    // expensive one).
     Promise.all([
       api.get('/users', { params: { role: 'semesterAdmin', departmentId: user.departmentId?._id, shift: user.shift } }),
       api.get('/users', { params: { role: 'teacher', departmentId: user.departmentId?._id, shift: user.shift } }),
-      api.get('/users', { params: { role: 'student', departmentId: user.departmentId?._id, shift: user.shift } }),
+      api.get('/users', { params: { role: 'student', departmentId: user.departmentId?._id, shift: user.shift, countOnly: true } }),
     ]).then(([sa, t, st]) => {
       setStats({
         semesterAdmins: sa.data.count || 0,

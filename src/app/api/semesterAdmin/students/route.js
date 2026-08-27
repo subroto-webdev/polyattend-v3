@@ -17,9 +17,12 @@ export async function GET(request) {
   const auth = await requireAuth(request, ['semesterAdmin']);
   if (auth.error) return auth.error;
   try {
+    // PERFORMANCE: read-only list, result goes straight to JSON — .lean()
+    // skips Mongoose document hydration since nothing here saves these
+    // docs back.
     const entries = await StudentPreApproval.find({
       departmentId: auth.user.departmentId, shift: auth.user.shift, semester: auth.user.semester,
-    }).populate('usedByUserId', 'name').sort({ createdAt: -1 });
+    }).populate('usedByUserId', 'name').sort({ createdAt: -1 }).lean();
     return NextResponse.json({ success: true, entries });
   } catch (error) { return errorResponse(error); }
 }

@@ -75,30 +75,61 @@ function DownloadButtons({ id, endpoint, baseName, downloadingId, onDownload }) 
 
 export default function AdminReports() {
   const [subjects, setSubjects] = useState([]);
-  const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('subject');
   const [downloadingId, setDownloadingId] = useState(null); // `${id}-${format}`
-  const [deletingSessionId, setDeletingSessionId] = useState(null);
 
   // ── FIX (Requirement #3): search bars on every report tab ──────────────
   const [subjectSearch, setSubjectSearch] = useState('');
-  const [sessionSearch, setSessionSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
 
   useEffect(() => {
-    Promise.all([api.get('/subjects'), api.get('/sessions'), api.get('/users?role=student')])
-      .then(([s, se, st]) => { setSubjects(s.data.subjects || []); setSessions(se.data.sessions || []); setStudents(st.data.users || []); })
+    // PERFORMANCE: this used to also fetch `/users?role=student` here with
+    // no limit — fine with a few hundred students, but with enrollment in
+    // the thousands that meant downloading the entire student roster (name,
+    // ID, department, etc. for every one of them) on every visit to this
+    // page, even if the admin only ever wanted the Subject tab. Students
+    // are now loaded separately, only for the Student tab, and searched
+    // server-side (see the studentSearch effect below) — so this initial
+    // load stays small regardless of how many students exist.
+    api.get('/subjects')
+      .then(r => setSubjects(r.data.subjects || []))
       .catch(err => {
-        // FIX: previously a single failed request silently emptied every tab
-        // (Promise.all rejects as a whole), which looked exactly like
-        // "nothing to download". Now the admin actually sees why.
         console.error(err);
         toast.error(err.response?.data?.message || 'Problem loading Reports');
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // PERFORMANCE: the Student tab searches server-side instead of filtering
+  // a full in-browser roster — /api/users already supports `search` (name,
+  // email, or Student ID) and `limit` server-side, so this fetches only the
+  // matching page (capped at 50) no matter how many students exist overall.
+  // Debounced so a fast typist doesn't fire a request per keystroke, and
+  // only runs while the Student tab is actually open.
+  useEffect(() => {
+    if (tab !== 'student') return;
+    const q = studentSearch.trim();
+    if (!q) { setStudents([]); return; }
+
+    let cancelled = false;
+    setStudentsLoading(true);
+    const timer = setTimeout(() => {
+      api.get(`/users?role=student&search=${encodeURIComponent(q)}&limit=50`)
+        .then(r => { if (!cancelled) setStudents(r.data.users || []); })
+        .catch(err => {
+          if (!cancelled) {
+            console.error(err);
+            toast.error(err.response?.data?.message || 'Problem searching students');
+          }
+        })
+        .finally(() => { if (!cancelled) setStudentsLoading(false); });
+    }, 300);
+
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tab, studentSearch]);
 
   const filteredSubjects = useMemo(() => {
     const q = subjectSearch.trim().toLowerCase();
@@ -110,29 +141,11 @@ export default function AdminReports() {
     );
   }, [subjects, subjectSearch]);
 
-  const filteredSessions = useMemo(() => {
-    const q = sessionSearch.trim().toLowerCase();
-    if (!q) return sessions;
-    return sessions.filter(s =>
-      s.subjectId?.name?.toLowerCase().includes(q) ||
-      s.section?.toLowerCase().includes(q) ||
-      new Date(s.date).toLocaleDateString().toLowerCase().includes(q)
-    );
-  }, [sessions, sessionSearch]);
-
-  const filteredStudents = useMemo(() => {
-    const q = studentSearch.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter(s =>
-      s.name?.toLowerCase().includes(q) ||
-      s.studentId?.toLowerCase().includes(q) ||
-      s.departmentId?.name?.toLowerCase().includes(q)
-    );
-  }, [students, studentSearch]);
-
+  // Student search now happens server-side (see effect above) — `students`
+  // already holds just the matching results, so no further in-browser
+  // filtering is needed here.
   const groupedSubjects = useMemo(() => groupBySection(filteredSubjects), [filteredSubjects]);
-  const groupedSessions = useMemo(() => groupBySection(filteredSessions), [filteredSessions]);
-  const groupedStudents = useMemo(() => groupBySection(filteredStudents), [filteredStudents]);
+  const groupedStudents = useMemo(() => groupBySection(students), [students]);
 
   // ── FEATURE: PDF download alongside Excel ──────────────────────────────
   const download = async (endpoint, id, format, filename) => {
@@ -148,23 +161,6 @@ export default function AdminReports() {
     finally { setDownloadingId(null); }
   };
 
-  // FEATURE: admin can delete any session (and its attendance) directly
-  // from the Session Reports tab. Active sessions must be ended first —
-  // enforced by the backend, mirrored here to keep the button disabled.
-  const deleteSession = async (s) => {
-    if (!window.confirm(`Completely delete "${s.subjectId?.name || 'this session'}" — ${new Date(s.date).toLocaleDateString()}? Its attendance will also be deleted, this cannot be undone.`)) return;
-    setDeletingSessionId(s._id);
-    try {
-      await api.delete(`/sessions/${s._id}`);
-      setSessions(prev => prev.filter(x => x._id !== s._id));
-      toast.success('Session deleted');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Problem deleting');
-    } finally {
-      setDeletingSessionId(null);
-    }
-  };
-
   if (loading) return <div className="loading"><div className="spinner" /></div>;
 
   return (
@@ -175,7 +171,7 @@ export default function AdminReports() {
       </div>
 
       <div className="chips" style={{ background: 'none', border: 'none', padding: '0 0 16px 0' }}>
-        {[['subject', 'Subject Reports'], ['session', 'Session Reports'], ['student', 'Student Reports']].map(([k, l]) => (
+        {[['subject', 'Subject Reports'], ['student', 'Student Reports']].map(([k, l]) => (
           <button key={k} className={`chip${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -206,49 +202,16 @@ export default function AdminReports() {
         </>
       )}
 
-      {tab === 'session' && (
-        <>
-          <div className="section-title">Session-wise Report</div>
-          <SearchBox value={sessionSearch} onChange={setSessionSearch} placeholder="Search by Subject, section or date..." />
-          {filteredSessions.length === 0 ? (
-            <div className="card"><div className="empty"><p>{sessions.length === 0 ? 'No sessions yet' : 'No session found'}</p></div></div>
-          ) : groupedSessions.map(group => (
-            <div key={group.section}>
-              <SectionHeading label={group.section} />
-              <div className="card">
-                {group.items.map(s => (
-                  <div key={s._id} className="list-item">
-                    <div className="item-icon icon-blue"><Icon name="calendar" size={18} /></div>
-                    <div className="item-content">
-                      <div className="item-title">{s.subjectId?.name} — Group {s.section}</div>
-                      <div className="item-sub">{new Date(s.date).toLocaleDateString()} • {s.presentCount}/{s.totalStudents}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <DownloadButtons id={s._id} endpoint={`/reports/class/${s._id}`} baseName={`session_report`} downloadingId={downloadingId} onDownload={download} />
-                      <button
-                        className="btn-secondary btn-sm"
-                        onClick={() => deleteSession(s)}
-                        disabled={deletingSessionId === s._id || s.status === 'active'}
-                        style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)' }}
-                        title={s.status === 'active' ? 'End the Session first' : 'Delete this session and its attendance'}
-                      >
-                        {deletingSessionId === s._id ? <div className="spinner spinner-sm" /> : <Icon name="trash" size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
       {tab === 'student' && (
         <>
           <div className="section-title">Student Personal Report</div>
-          <SearchBox value={studentSearch} onChange={setStudentSearch} placeholder="Search by Student name, ID or department..." />
-          {filteredStudents.length === 0 ? (
-            <div className="card"><div className="empty"><p>{students.length === 0 ? 'No students yet' : 'No student found'}</p></div></div>
+          <SearchBox value={studentSearch} onChange={setStudentSearch} placeholder="Search by Student name or ID..." />
+          {studentSearch.trim() === '' ? (
+            <div className="card"><div className="empty"><p>Type a name or Student ID to find a student.</p></div></div>
+          ) : studentsLoading ? (
+            <div className="loading"><div className="spinner" /></div>
+          ) : students.length === 0 ? (
+            <div className="card"><div className="empty"><p>No student found</p></div></div>
           ) : groupedStudents.map(group => (
             <div key={group.section}>
               <SectionHeading label={group.section} />

@@ -20,11 +20,13 @@ export async function GET(request) {
     const subAdmins = await User.find({ role: 'subAdmin' })
       .select('-password')
       .populate('departmentId', 'name code')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     const pendingInvites = await AdminInvite.find({ role: 'subAdmin', used: false, codeExpire: { $gt: new Date() } })
       .populate('departmentId', 'name code')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json({ success: true, subAdmins, pendingInvites });
   } catch (error) { return errorResponse(error); }

@@ -42,10 +42,14 @@ export async function GET(request) {
       filter.semester = auth.user.semester;
     }
 
+    // PERFORMANCE: read-only lookup whose result goes straight to JSON —
+    // .lean() skips Mongoose document hydration (change-tracking, getters,
+    // virtuals) since nothing here ever saves these docs back.
     const staff = await User.find(filter)
       .select('name email mobile role departmentId shift semester')
       .populate('departmentId', 'name code')
-      .limit(20);
+      .limit(20)
+      .lean();
 
     return NextResponse.json({ success: true, staff });
   } catch (error) { return errorResponse(error); }
