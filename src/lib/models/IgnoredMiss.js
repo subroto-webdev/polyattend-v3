@@ -17,4 +17,18 @@ const ignoredMissSchema = new mongoose.Schema({
 
 ignoredMissSchema.index({ subjectId: 1, date: 1 }, { unique: true });
 
+// AUTO-EXPIRE: once a dismissed entry's `date` is more than 7 days old,
+// it can no longer appear in the Missed Classes Report anyway (see
+// LOOKBACK_DAYS in /api/reports/missed-sessions), so there's no reason to
+// keep the dismissal record around. MongoDB's TTL monitor runs roughly
+// once every 60s and deletes the doc once `date + 7 days` has passed.
+// NOTE: MongoDB does NOT let a collection have two TTL indexes on
+// different fields, and does NOT let you change expireAfterSeconds on an
+// existing index without dropping it first — if this index already
+// exists on your Atlas cluster from before, run:
+//   db.ignoredmisses.dropIndex("date_1")
+// (or whatever mongoose named it) before redeploying, or the new
+// expireAfterSeconds value silently won't take effect.
+ignoredMissSchema.index({ date: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+
 export default mongoose.models.IgnoredMiss || mongoose.model('IgnoredMiss', ignoredMissSchema);

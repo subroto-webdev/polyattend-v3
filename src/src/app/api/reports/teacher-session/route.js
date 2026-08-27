@@ -63,12 +63,13 @@ export async function GET(request) {
     const subjects = await Subject.find(subjectFilter)
       .populate('departmentId', 'name code')
       .populate('teacherId', 'name email mobile')
-      .sort({ departmentId: 1, semester: 1, section: 1 });
+      .sort({ departmentId: 1, semester: 1, section: 1 })
+      .lean();
 
     const sessionsToday = await Session.find({
       subjectId: { $in: subjects.map(s => s._id) },
       date: { $gte: dayStart, $lte: dayEnd },
-    }).select('subjectId status isSubstitute substituteBy').populate('substituteBy', 'name');
+    }).select('subjectId status isSubstitute substituteBy').populate('substituteBy', 'name').lean();
 
     const sessionBySubjectId = new Map();
     sessionsToday.forEach(s => sessionBySubjectId.set(s.subjectId.toString(), s));

@@ -23,4 +23,13 @@ const sessionSchema = new mongoose.Schema({
   substituteBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
+// PERFORMANCE: every read of this collection filters by subjectId+date
+// (Missed Classes Report, Covered Miss Class, subject-level reports) or
+// by teacherId+date (Teacher Dashboard, Teacher Session Report). With no
+// index at all beyond the default _id, every one of those queries was a
+// full collection scan — fine with a handful of rows, but it gets
+// linearly slower as Sessions pile up over the semester.
+sessionSchema.index({ subjectId: 1, date: 1 });
+sessionSchema.index({ teacherId: 1, date: -1 });
+
 export default mongoose.models.Session || mongoose.model('Session', sessionSchema);

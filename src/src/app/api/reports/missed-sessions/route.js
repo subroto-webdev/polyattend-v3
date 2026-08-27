@@ -76,7 +76,8 @@ export async function GET(request) {
 
     const subjects = await Subject.find(subjectFilter)
       .populate('teacherId', 'name email mobile')
-      .populate('departmentId', 'name code');
+      .populate('departmentId', 'name code')
+      .lean();
 
     if (subjects.length === 0) {
       return NextResponse.json({ success: true, missed: [] });
@@ -87,12 +88,12 @@ export async function GET(request) {
       Session.find({
         subjectId: { $in: subjectIds },
         date: { $gte: rangeStart, $lte: cutoff },
-      }).select('subjectId date'),
-      Holiday.find({ startDate: { $lte: cutoff }, endDate: { $gte: rangeStart } }).select('startDate endDate'),
+      }).select('subjectId date').lean(),
+      Holiday.find({ startDate: { $lte: cutoff }, endDate: { $gte: rangeStart } }).select('startDate endDate').lean(),
       IgnoredMiss.find({
         subjectId: { $in: subjectIds },
         date: { $gte: rangeStart, $lte: cutoff },
-      }).select('subjectId date'),
+      }).select('subjectId date').lean(),
     ]);
 
     const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

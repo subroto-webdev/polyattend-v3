@@ -67,4 +67,13 @@ userSchema.methods.toJSON = function () {
   return obj;
 };
 
+// PERFORMANCE: /api/users (the main Users/Students list, called on every
+// admin/subAdmin/semesterAdmin/teacher page load) and every scope check
+// elsewhere always filter by role + departmentId + shift + semester
+// together. No index beyond the default _id meant this list did a full
+// collection scan of every User in the system on every load — the
+// slowest part of the app once student counts grow, since students are
+// by far the largest User group.
+userSchema.index({ role: 1, departmentId: 1, shift: 1, semester: 1 });
+
 export default mongoose.models.User || mongoose.model('User', userSchema);

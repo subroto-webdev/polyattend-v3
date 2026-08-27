@@ -50,7 +50,8 @@ export async function GET(request) {
     const subjects = await Subject.find(filter)
       .populate('departmentId', 'name code')
       .populate('teacherId', 'name email')
-      .sort({ semester: 1, name: 1 });
+      .sort({ semester: 1, name: 1 })
+      .lean();
     return NextResponse.json({ success: true, subjects });
   } catch (error) { return errorResponse(error); }
 }

@@ -17,12 +17,12 @@ export async function GET(request) {
   try {
     const semesterAdmins = await User.find({
       role: 'semesterAdmin', departmentId: auth.user.departmentId, shift: auth.user.shift,
-    }).select('-password').populate('departmentId', 'name code').sort({ semester: 1 });
+    }).select('-password').populate('departmentId', 'name code').sort({ semester: 1 }).lean();
 
     const pendingInvites = await AdminInvite.find({
       role: 'semesterAdmin', departmentId: auth.user.departmentId, shift: auth.user.shift,
       used: false, codeExpire: { $gt: new Date() },
-    }).populate('departmentId', 'name code').sort({ semester: 1 });
+    }).populate('departmentId', 'name code').sort({ semester: 1 }).lean();
 
     return NextResponse.json({ success: true, semesterAdmins, pendingInvites });
   } catch (error) { return errorResponse(error); }

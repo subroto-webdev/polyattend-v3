@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import User from '@/lib/models/User';
+import Subject from '@/lib/models/Subject';
 import { requireAuth, errorResponse } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -115,6 +116,22 @@ export async function DELETE(request, { params }) {
     }
 
     await User.findByIdAndDelete(id);
+
+    // CASCADE FIX: a Subject with no living Teacher can't have attendance
+    // taken for it, so it shouldn't still count as "active" anywhere —
+    // but nothing was clearing Subject.teacherId (or deactivating the
+    // Subject) when its Teacher got deleted here. That left a Subject
+    // pointing at a User that no longer exists, which `populate()` just
+    // silently returns as null for — showing up as "—" / "No mobile on
+    // file" in the Missed Classes Report (and anywhere else that reads
+    // subject.teacherId.name) instead of disappearing like a properly
+    // retired Subject should. Soft-delete it the same way the Subject's
+    // own DELETE endpoint does (isActive: false), so it's excluded
+    // everywhere `isActive: true` is already filtered on.
+    if (target.role === 'teacher') {
+      await Subject.updateMany({ teacherId: target._id }, { isActive: false });
+    }
+
     return NextResponse.json({ success: true, message: `${target.name} has been permanently deleted` });
   } catch (error) { return errorResponse(error); }
 }

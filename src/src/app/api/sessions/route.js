@@ -162,7 +162,7 @@ export async function GET(request) {
 
     const sessions = await Session.find(filter)
       .populate('teacherId', 'name').populate('departmentId', 'name code').populate('subjectId', 'name code')
-      .sort({ createdAt: -1 }).limit(100);
+      .sort({ createdAt: -1 }).limit(100).lean();
 
     return NextResponse.json({ success: true, count: sessions.length, sessions });
   } catch (error) { return errorResponse(error); }

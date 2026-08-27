@@ -9,7 +9,7 @@ export async function GET(request) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
   try {
-    const departments = await Department.find({ isActive: true }).sort('name');
+    const departments = await Department.find({ isActive: true }).sort('name').lean();
     return NextResponse.json({ success: true, departments });
   } catch (error) { return errorResponse(error); }
 }

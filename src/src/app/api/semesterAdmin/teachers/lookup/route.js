@@ -31,7 +31,8 @@ export async function GET(request) {
     const subjects = await Subject.find({ teacherId: user._id })
       .populate('departmentId', 'name code')
       .select('name code section semester shift departmentId')
-      .sort({ semester: 1 });
+      .sort({ semester: 1 })
+      .lean();
 
     return NextResponse.json({
       success: true, found: true, isTeacher: true,

@@ -18,7 +18,7 @@ export async function GET(request) {
     const filter = { role: 'student', departmentId, semester: parseInt(semester), section, isActive: true };
     if (shift) filter.shift = shift;
 
-    const students = await User.find(filter).select('-password').populate('departmentId', 'name code');
+    const students = await User.find(filter).select('-password').populate('departmentId', 'name code').lean();
     return NextResponse.json({ success: true, count: students.length, students });
   } catch (error) { return errorResponse(error); }
 }

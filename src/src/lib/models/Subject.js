@@ -11,4 +11,13 @@ const subjectSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// PERFORMANCE: nearly every route filters Subjects by isActive +
+// departmentId/shift/semester (student's own class, admin scope
+// enforcement) or by teacherId (a Teacher's own Subjects, Missed Classes
+// Report). No index beyond _id meant a full collection scan on every one
+// of these — cheap today, but it grows with every Department/Subject
+// added over time.
+subjectSchema.index({ isActive: 1, departmentId: 1, shift: 1, semester: 1 });
+subjectSchema.index({ teacherId: 1 });
+
 export default mongoose.models.Subject || mongoose.model('Subject', subjectSchema);

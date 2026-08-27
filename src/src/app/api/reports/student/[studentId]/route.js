@@ -45,7 +45,7 @@ export async function GET(request, { params }) {
     }
 
     const records = await Attendance.find({ studentId: student._id })
-      .populate('subjectId', 'name code').populate('sessionId', 'date').sort({ date: -1 });
+      .populate('subjectId', 'name code').populate('sessionId', 'date').sort({ date: -1 }).lean();
 
     const bySubject = {};
     records.forEach(r => {

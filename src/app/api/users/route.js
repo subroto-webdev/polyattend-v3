@@ -56,7 +56,30 @@ export async function GET(request) {
       filter.semester = auth.user.semester;
     }
 
-    const users = await User.find(filter).select('-password').populate('departmentId', 'name code').sort({ createdAt: -1 });
+    // PAGINATION (opt-in): the Users/Students management page can hold
+    // every student in the college, so loading it all at once got slower
+    // as enrollment grew. `page`/`limit` are optional — a caller that
+    // doesn't pass them (e.g. the Teacher's attendance roster, or any
+    // dropdown that genuinely needs the complete list) gets the old
+    // unpaginated behavior unchanged, so this can't silently break
+    // anything already relying on a full result.
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+
+    if (pageParam || limitParam) {
+      const page = Math.max(1, parseInt(pageParam) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(limitParam) || 50));
+      const [users, total] = await Promise.all([
+        User.find(filter).select('-password').populate('departmentId', 'name code')
+          .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        User.countDocuments(filter),
+      ]);
+      return NextResponse.json({
+        success: true, count: users.length, total, page, totalPages: Math.max(1, Math.ceil(total / limit)), users,
+      });
+    }
+
+    const users = await User.find(filter).select('-password').populate('departmentId', 'name code').sort({ createdAt: -1 }).lean();
     return NextResponse.json({ success: true, count: users.length, users });
   } catch (error) { return errorResponse(error); }
 }

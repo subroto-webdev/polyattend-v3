@@ -4,6 +4,7 @@ import api from '@/utils/api';
 import Icon from '@/components/common/Icon';
 import toast from 'react-hot-toast';
 import Modal from '@/components/common/Modal';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Role config ────────────────────────────────────────────────
 const ROLE_META = {
@@ -314,14 +315,18 @@ export default function AdminUsers({
   title = 'Users Management',
   subtitle = 'Manage all system users',
 }) {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [currentUser, setCurrentUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 50;
 
   const groupedUsers = useMemo(() => {
     const withSection = {};
@@ -341,18 +346,23 @@ export default function AdminUsers({
     return groups;
   }, [users]);
 
-  const load = () => {
+  const load = (pageToLoad = page) => {
     setLoading(true);
-    const params = {};
+    const params = { page: pageToLoad, limit: PAGE_SIZE };
     if (roleFilter !== 'all') params.role = roleFilter;
     if (search) params.search = search;
-    api.get('/users', { params }).then(r => setUsers(r.data.users || [])).finally(() => setLoading(false));
+    api.get('/users', { params }).then(r => {
+      setUsers(r.data.users || []);
+      setTotal(r.data.total ?? (r.data.users || []).length);
+      setTotalPages(r.data.totalPages || 1);
+      setPage(r.data.page || pageToLoad);
+    }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { api.get('/auth/me').then(r => setCurrentUser(r.data.user)); }, []);
-  useEffect(() => { load(); }, [roleFilter]);
+  useEffect(() => { load(1); }, [roleFilter]);
 
-  const handleSearch = (e) => { e.preventDefault(); load(); };
+  const handleSearch = (e) => { e.preventDefault(); load(1); };
+  const goToPage = (p) => { if (p >= 1 && p <= totalPages && p !== page) load(p); };
 
   const toggleActive = async (user) => {
     if (currentUser && user._id === currentUser._id) {
@@ -418,7 +428,7 @@ export default function AdminUsers({
           fontSize: 13, fontWeight: 700,
         }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
-          {users.length} Total Users
+          {total} Total Users
         </div>
       </div>
 
@@ -544,6 +554,31 @@ export default function AdminUsers({
             ))}
           </div>
         </>
+      )}
+
+      {/* ── Pagination ── */}
+      {!loading && users.length > 0 && totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 18 }}>
+          <button
+            className="btn-secondary btn-sm"
+            style={{ borderRadius: 10 }}
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+          >
+            <Icon name="chevronLeft" size={14} /> Prev
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt2)' }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            className="btn-secondary btn-sm"
+            style={{ borderRadius: 10 }}
+            disabled={page >= totalPages}
+            onClick={() => goToPage(page + 1)}
+          >
+            Next <Icon name="chevronRight" size={14} />
+          </button>
+        </div>
       )}
 
       {/* Delete confirmation — irreversible, so require typing the exact name */}

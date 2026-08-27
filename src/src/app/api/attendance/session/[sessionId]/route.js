@@ -25,7 +25,8 @@ export async function GET(request, { params }) {
 
     const attendance = await Attendance.find({ sessionId })
       .populate('studentId', 'name studentId section shift')
-      .sort({ 'studentId.name': 1 });
+      .sort({ 'studentId.name': 1 })
+      .lean();
     return NextResponse.json({ success: true, count: attendance.length, attendance });
   } catch (error) { return errorResponse(error); }
 }
