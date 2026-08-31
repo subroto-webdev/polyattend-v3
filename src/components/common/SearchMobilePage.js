@@ -68,8 +68,9 @@ export default function SearchMobilePage({ canStaffSearch = false }) {
           padding: 28px;
           max-width: 560px;
           box-shadow: var(--shadow);
+          box-sizing: border-box;
         }
-        .smb-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .smb-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
         .smb-tab {
           padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--border);
           background: var(--bg2); color: var(--txt2); font-size: 13px; font-weight: 700;
@@ -80,17 +81,17 @@ export default function SearchMobilePage({ canStaffSearch = false }) {
         .smb-sub { font-size: 13px; color: var(--txt2); margin-bottom: 24px; }
         .smb-input-wrap { display: flex; gap: 10px; margin-bottom: 16px; }
         .smb-input {
-          flex: 1; background: var(--bg2); border: 1.5px solid var(--border); border-radius: 12px;
+          flex: 1; min-width: 0; width: 100%; background: var(--bg2); border: 1.5px solid var(--border); border-radius: 12px;
           padding: 12px 16px; font-size: 15px; color: var(--txt); outline: none;
-          transition: border-color 0.18s;
+          transition: border-color 0.18s; box-sizing: border-box;
         }
         .smb-input.mono { font-family: monospace; letter-spacing: 1px; }
         .smb-input:focus { border-color: var(--primary); }
         .smb-btn {
           background: var(--primary); color: #fff; border: none; border-radius: 12px;
           padding: 12px 22px; font-size: 13px; font-weight: 700; cursor: pointer;
-          display: flex; align-items: center; gap: 6px; transition: opacity 0.15s, transform 0.15s;
-          white-space: nowrap;
+          display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.15s, transform 0.15s;
+          white-space: nowrap; box-sizing: border-box; flex-shrink: 0;
         }
         .smb-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .smb-btn:not(:disabled):hover { opacity: 0.88; transform: scale(1.03); }
@@ -101,6 +102,7 @@ export default function SearchMobilePage({ canStaffSearch = false }) {
         .smb-result {
           margin-top: 18px; background: var(--bg2); border: 1.5px solid var(--border);
           border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 14px;
+          flex-wrap: wrap; box-sizing: border-box;
         }
         .smb-avatar {
           width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -116,6 +118,19 @@ export default function SearchMobilePage({ canStaffSearch = false }) {
         .smb-hint {
           display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--border);
           border-radius: 10px; padding: 12px 16px; font-size: 12.5px; color: var(--txt2); margin-top: 20px;
+        }
+
+        /* FIX: on narrow (mobile) viewports the input+button flex row no
+           longer fits side-by-side within the card — the button was
+           overflowing past the card's (and page's) right edge instead of
+           wrapping. Below 480px, stack the input above a full-width
+           button instead, and trim the card's own padding so nothing
+           else pushes past the viewport either. */
+        @media (max-width: 480px) {
+          .smb-card { padding: 18px; max-width: 100%; }
+          .smb-input-wrap { flex-direction: column; }
+          .smb-btn { width: 100%; }
+          .smb-mobile-box { margin-left: 0; text-align: left; }
         }
       `}</style>
 

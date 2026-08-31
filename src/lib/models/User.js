@@ -84,4 +84,18 @@ userSchema.index({ role: 1, departmentId: 1, shift: 1, semester: 1 });
 // the same query resolve directly from the index instead.
 userSchema.index({ role: 1, departmentId: 1, shift: 1, semester: 1, section: 1 });
 
+// PERFORMANCE: this is almost certainly what's making the app feel slower
+// since the "All Users" feature was added. Super Admin's "All Users" tab
+// (AdminUsers.js with roleFilter='all') queries with NO filter at all —
+// unlike Sub Admin/Semester Admin/Teacher, an admin's view isn't scoped
+// by department/shift/semester — and sorts by createdAt (newest first).
+// With no index covering that sort, MongoDB has to pull and sort EVERY
+// User in the whole system (every student, every role combined) on every
+// single page load / page turn, before it can even apply skip+limit —
+// this gets slower as enrollment grows, and is the one query pattern the
+// two indexes above don't help with at all. This index lets that sort
+// resolve directly instead of scanning + in-memory-sorting the full
+// collection.
+userSchema.index({ createdAt: -1 });
+
 export default mongoose.models.User || mongoose.model('User', userSchema);

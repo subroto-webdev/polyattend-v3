@@ -47,9 +47,12 @@ export async function GET(request) {
       filter.semester = auth.user.semester;
     }
 
+    // FEATURE: Student "My Teachers" view (subject-wise teacher contact)
+    // needs the Teacher's mobile number alongside name/email, so it's
+    // included here too — same populate used by every role's subjects list.
     const subjects = await Subject.find(filter)
       .populate('departmentId', 'name code')
-      .populate('teacherId', 'name email')
+      .populate('teacherId', 'name email mobile')
       .sort({ semester: 1, name: 1 })
       .lean();
     return NextResponse.json({ success: true, subjects });
