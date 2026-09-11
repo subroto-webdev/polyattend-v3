@@ -5,8 +5,21 @@ import Icon from '@/components/common/Icon';
 import toast from 'react-hot-toast';
 import Modal from '@/components/common/Modal';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SemesterAdminStudents() {
+  const { user } = useAuth();
+  // MULTI-SEMESTER ADMIN: Student Validation is kept SEPARATE per
+  // Semester — never a merged list. `allowedSemesters` is every Semester
+  // this admin has been granted; `selectedSemester` is which one they're
+  // currently viewing/adding to, chosen via the tabs below.
+  const allowedSemesters = user?.semesters && user.semesters.length ? user.semesters : (user?.semester ? [user.semester] : []);
+  const [selectedSemester, setSelectedSemester] = useState(null);
+  useEffect(() => {
+    if (allowedSemesters.length && selectedSemester == null) setSelectedSemester(allowedSemesters[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -14,26 +27,29 @@ export default function SemesterAdminStudents() {
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | pending | used
-  const [form, setForm] = useState({ roll: '', email: '' });
+  const [form, setForm] = useState({ roll: '', email: '', section: '' });
   const [uploadResult, setUploadResult] = useState(null);
   const fileInputRef = useRef(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // a `used` entry, needs typed-name confirm
 
   const load = () => {
+    if (selectedSemester == null) return;
     setLoading(true);
-    api.get('/semesterAdmin/students').then(r => setEntries(r.data.entries || [])).finally(() => setLoading(false));
+    api.get('/semesterAdmin/students', { params: { semester: selectedSemester } })
+      .then(r => setEntries(r.data.entries || []))
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [selectedSemester]);
 
   const set = f => e => setForm(p => ({ ...p, [f]: e.target.value }));
 
-  const openCreate = () => { setForm({ roll: '', email: '' }); setShowModal(true); };
+  const openCreate = () => { setForm({ roll: '', email: '', section: '' }); setShowModal(true); };
 
   const handleSubmit = async () => {
-    if (!form.roll || !form.email) return toast.error('Enter Roll and Email');
+    if (!form.roll || !form.email || !form.section) return toast.error('Enter Roll, Email and Group');
     setSaving(true);
     try {
-      await api.post('/semesterAdmin/students', form);
+      await api.post('/semesterAdmin/students', form, { params: { semester: selectedSemester } });
       toast.success('Student pre-approved — code sent to their email');
       setShowModal(false);
       load();
@@ -54,7 +70,7 @@ export default function SemesterAdminStudents() {
       formData.append('file', file);
       // IMPORTANT: don't set Content-Type manually here — axios/the browser
       // needs to generate the multipart boundary itself.
-      const res = await api.post('/semesterAdmin/students', formData);
+      const res = await api.post('/semesterAdmin/students', formData, { params: { semester: selectedSemester } });
       setUploadResult(res.data);
       toast.success(res.data.message);
       load();
@@ -135,8 +151,32 @@ export default function SemesterAdminStudents() {
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--txt3)', marginBottom: 16, background: 'var(--bg3)', padding: '10px 14px', borderRadius: 10 }}>
-        📄 The Excel/CSV file must have only <strong>Roll</strong> and <strong>Email</strong> — these two columns (as headers in the first row). Each Student's email will get a separate 12-digit code.
+        📄 The Excel/CSV file must have <strong>Roll</strong>, <strong>Email</strong> and <strong>Group</strong> — these three columns (as headers in the first row, Group as A/B/C/D). Each Student's email will get a separate 12-digit code.
       </div>
+
+      {/* MULTI-SEMESTER ADMIN: Student Validation stays strictly separate
+          per Semester — this tab bar only appears once this admin has
+          more than one granted Semester; switching tabs reloads the list
+          scoped to that Semester only. */}
+      {allowedSemesters.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          {allowedSemesters.map(sem => (
+            <button
+              key={sem}
+              onClick={() => setSelectedSemester(sem)}
+              style={{
+                padding: '7px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                background: selectedSemester === sem ? 'var(--primary)' : 'var(--bg3)',
+                color: selectedSemester === sem ? '#fff' : 'var(--txt2)',
+                transition: 'all .18s ease',
+              }}
+            >
+              Semester {sem}
+            </button>
+          ))}
+        </div>
+      )}
 
       {uploading && (
         <div className="progress-track" style={{ marginBottom: 16 }}>
@@ -221,7 +261,7 @@ export default function SemesterAdminStudents() {
                   {en.used && en.usedByUserId?.name ? en.usedByUserId.name : `Roll: ${en.roll}`}
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--txt2)' }}>
-                  {en.used && en.usedByUserId?.name ? `Roll: ${en.roll} • ` : ''}{en.email}
+                  {en.used && en.usedByUserId?.name ? `Roll: ${en.roll} • ` : ''}{en.email}{en.section ? ` • Group ${en.section}` : ''}
                 </div>
               </div>
               <span className={`tag ${en.used ? 'tag-green' : 'tag-amber'}`}>
@@ -255,9 +295,32 @@ export default function SemesterAdminStudents() {
           <label className="form-label">Email *</label>
           <input className="form-input" type="email" placeholder="email@example.com" value={form.email} onChange={set('email')} />
         </div>
+        <div className="form-group">
+          <label className="form-label">Group *</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {['A', 'B', 'C', 'D'].map(g => {
+              const selected = form.section === g;
+              return (
+                <button
+                  key={g} type="button"
+                  onClick={() => setForm(p => ({ ...p, section: g }))}
+                  style={{
+                    padding: '10px 0', borderRadius: 10, textAlign: 'center',
+                    border: selected ? '2px solid var(--primary)' : '2px solid var(--border2)',
+                    background: selected ? 'var(--primary-light)' : 'var(--bg)',
+                    color: selected ? 'var(--primary)' : 'var(--txt)',
+                    cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+                  }}
+                >
+                  {g}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div style={{ fontSize: 12, color: 'var(--txt3)', marginTop: 4, marginBottom: 4 }}>
-          Submitting will send a 12-digit Registration Code to this email (valid for 1 month).
+          A Student Profile is created right away (Roll, Email, Group, Semester) — only the Name stays empty until the Student registers with this Email. Submitting will send a 12-digit Registration Code to this email (valid for 1 month).
         </div>
 
         <div className="modal-footer">

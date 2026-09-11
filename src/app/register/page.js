@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -26,13 +26,11 @@ function getPasswordStrength(pw) {
 export default function RegisterPage() {
   const router = useRouter();
   const role = 'student';
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [form, setForm] = useState({
     name: '', email: '', password: '',
-    shift: '', studentId: '', departmentId: '', semester: '', section: '',
-    preApprovalCode: '', mobile: '',
+    studentId: '', preApprovalCode: '', mobile: '',
   });
 
   // Small derived values — only for UI hint/animation, submit validation stays as-is
@@ -41,10 +39,6 @@ export default function RegisterPage() {
   const passwordValid = isStrongPassword(form.password).ok;
   const strength = getPasswordStrength(form.password);
 
-  useEffect(() => {
-    api.get('/departments/public').then(res => setDepartments(res.data.departments || [])).catch(() => { });
-  }, []);
-
   const set = field => e => setForm(p => ({ ...p, [field]: e.target.value }));
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,9 +46,7 @@ export default function RegisterPage() {
     if (!EMAIL_REGEX.test(form.email)) return toast.error('Enter a valid Email address');
     const pwCheck = isStrongPassword(form.password);
     if (!pwCheck.ok) return toast.error(pwCheck.message);
-    if (!form.studentId || !form.departmentId || !form.semester || !form.section || !form.shift) {
-      return toast.error('Enter Student ID, Department, Semester, Group and Shift');
-    }
+    if (!form.studentId) return toast.error('Enter your Student Roll');
     if (!form.mobile.trim()) return toast.error('Mobile Number is required');
     if (!/^01[0-9]{9}$/.test(form.mobile.trim())) return toast.error('Enter a valid 11-digit mobile number (e.g. 01XXXXXXXXX)');
     if (!form.preApprovalCode) return toast.error('Enter the Registration Code sent by your Semester Admin');
@@ -67,39 +59,6 @@ export default function RegisterPage() {
       toast.error(err.response?.data?.message || 'Registration failed'); // backend error shown here
     } finally { setLoading(false); }
   };
-
-  const ShiftSelector = () => (
-    <div className="form-group">
-      <label className="form-label">Shift *</label>
-      <div style={{ display: 'flex', gap: 10 }}>
-        {[
-          { value: '1st', label: '🌅 Morning Shift' },
-          { value: '2nd', label: '🌙 Day Shift' }
-        ].map(s => {
-          const selected = form.shift === s.value;
-          return (
-            <button
-              key={s.value}
-              type="button"
-              className={`rp-toggle-btn${selected ? ' is-selected' : ''}`}
-              onClick={() => setForm(p => ({ ...p, shift: s.value }))}
-              style={{
-                flex: 1, padding: '12px 10px', borderRadius: 10,
-                border: selected ? '2px solid var(--primary)' : '2px solid var(--border2)',
-                background: selected ? 'var(--primary-light)' : 'var(--bg)',
-                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 700, color: selected ? 'var(--primary)' : 'var(--txt)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {s.label}
-                {selected && <span className="rp-check">✓</span>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 
   return (
     <div className="auth-page rp-page" style={{ alignItems: 'flex-start', paddingTop: 24, paddingBottom: 24 }}>
@@ -281,30 +240,9 @@ export default function RegisterPage() {
                   Your Semester Admin sent this code to this Roll + Email. Check your Spam folder.
                 </span>
               </div>
-              <div className="form-group">
-                <label className="form-label">Department *</label>
-                <select className="form-select" value={form.departmentId} onChange={set('departmentId')} required>
-                  <option value="">-- Select Department --</option>
-                  {departments.map(d => <option key={d._id} value={d._id}>{d.name} ({d.code})</option>)}
-                </select>
+              <div style={{ fontSize: 12, color: 'var(--txt3)', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', marginBottom: 4 }}>
+                🎓 Your Department, Semester, Group and Shift were already set by your Semester Admin — no need to pick them again.
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Semester *</label>
-                  <select className="form-select" value={form.semester} onChange={set('semester')} required>
-                    <option value="">--</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>{s}th Sem</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Group *</label>
-                  <select className="form-select" value={form.section} onChange={set('section')} required>
-                    <option value="">--</option>
-                    {['A', 'B', 'C', 'D'].map(s => <option key={s} value={s}>Group {s}</option>)}
-                  </select>
-                </div>
-              </div>
-              <ShiftSelector />
             </div>
           )}
 

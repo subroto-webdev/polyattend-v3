@@ -31,7 +31,9 @@ function SemesterAdminCard({ person, onToggle, onDelete }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
         <span className="sa-chip sa-chip-primary">Semester Admin</span>
         {person.departmentCode && <span className="sa-chip">{person.departmentCode}</span>}
-        {person.semester && <span className="sa-chip">Sem {person.semester}</span>}
+        {(person.semesters && person.semesters.length ? person.semesters : (person.semester ? [person.semester] : [])).map(sem => (
+          <span key={sem} className="sa-chip">Sem {sem}</span>
+        ))}
       </div>
       {person.shift && (
         <div style={{ marginTop: 8 }}>
@@ -126,11 +128,15 @@ export default function SubAdminSemesterAdmins() {
   const openCreate = () => { setForm({ name: '', email: '', semester: '' }); setShowModal(true); };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.email || !form.semester) return toast.error('Enter Name, Email and Semester');
+    if (!form.email || !form.semester) return toast.error('Enter Email and Semester');
     setSaving(true);
     try {
-      await api.post('/subAdmin/semester-admins', form);
-      toast.success('Semester Admin invite sent — ask them to check their email');
+      // MULTI-SEMESTER ADMIN: if `email` already belongs to a Semester
+      // Admin in your own scope, the backend just adds this Semester to
+      // their existing account instead of sending a new invite — Name
+      // isn't required in that case (only for a genuinely new person).
+      const res = await api.post('/subAdmin/semester-admins', form);
+      toast.success(res.data.message);
       setShowModal(false);
       load();
     } catch (err) {
@@ -169,7 +175,7 @@ export default function SubAdminSemesterAdmins() {
   );
 
   const takenSemesters = new Set([
-    ...semesterAdmins.filter(s => s.isActive).map(s => s.semester),
+    ...semesterAdmins.filter(s => s.isActive).flatMap(s => (s.semesters && s.semesters.length ? s.semesters : (s.semester ? [s.semester] : []))),
     ...pendingInvites.map(i => i.semester),
   ]);
 
@@ -180,7 +186,7 @@ export default function SubAdminSemesterAdmins() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 className="page-title">Semester Admin</h2>
-          <p className="page-sub">Create one Semester Admin for each Semester in your Department and Shift</p>
+          <p className="page-sub">Create a new Semester Admin, or grant an existing one another Semester in your Department and Shift</p>
         </div>
         <button className="btn-primary" style={{ width: 'auto', padding: '9px 18px' }} onClick={openCreate}>
           <Icon name="plus" size={16} /> New Semester Admin
@@ -256,8 +262,11 @@ export default function SubAdminSemesterAdmins() {
         <div className="modal-title">Invite New Semester Admin</div>
 
         <div className="form-group">
-          <label className="form-label">Semester Admin Name *</label>
+          <label className="form-label">Semester Admin Name</label>
           <input className="form-input" placeholder="Full Name" value={form.name} onChange={set('name')} />
+          <div style={{ fontSize: 11.5, color: 'var(--txt3)', marginTop: 4 }}>
+            Only needed for a brand-new person. If this Email already belongs to an existing Semester Admin, the selected Semester is just added to their account — Name is ignored.
+          </div>
         </div>
         <div className="form-group">
           <label className="form-label">Email *</label>

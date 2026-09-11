@@ -24,7 +24,7 @@ export async function GET(request, { params }) {
     if (auth.user.role === 'subAdmin' && (session.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift)) {
       return NextResponse.json({ success: false, message: 'This session is outside your scope' }, { status: 403 });
     }
-    if (auth.user.role === 'semesterAdmin' && (session.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || session.semester !== auth.user.semester)) {
+    if (auth.user.role === 'semesterAdmin' && (session.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || !(auth.user.semesters || []).includes(session.semester))) {
       return NextResponse.json({ success: false, message: 'This session is outside your scope' }, { status: 403 });
     }
 
@@ -54,7 +54,7 @@ export async function DELETE(request, { params }) {
     if (auth.user.role === 'subAdmin' && (session.departmentId?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift)) {
       return NextResponse.json({ success: false, message: 'This session is outside your scope' }, { status: 403 });
     }
-    if (auth.user.role === 'semesterAdmin' && (session.departmentId?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || session.semester !== auth.user.semester)) {
+    if (auth.user.role === 'semesterAdmin' && (session.departmentId?.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || !(auth.user.semesters || []).includes(session.semester))) {
       return NextResponse.json({ success: false, message: 'This session is outside your scope' }, { status: 403 });
     }
     if (session.status === 'active') {

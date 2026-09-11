@@ -99,7 +99,10 @@ export async function POST(request) {
       }
     }
 
-    const shiftFilter = { role: 'student', departmentId, semester: parseInt(semester), section, isActive: true };
+    // STUDENT PROFILE-FIRST VALIDATION: exclude unregistered shadow
+    // profiles (see User model) from the roster-size count — a student
+    // who hasn't completed registration yet was never actually present.
+    const shiftFilter = { role: 'student', departmentId, semester: parseInt(semester), section, isActive: true, registered: { $ne: false } };
     if (subjectShift) shiftFilter.shift = subjectShift;
 
     const totalStudents = await User.countDocuments(shiftFilter);
@@ -157,12 +160,30 @@ export async function GET(request) {
     if (auth.user.role === 'semesterAdmin') {
       filter.departmentId = auth.user.departmentId;
       filter.shift = auth.user.shift;
-      filter.semester = auth.user.semester;
+      const allowedSemesters = auth.user.semesters || [];
+      if (semester) {
+        const semNum = parseInt(semester);
+        if (!allowedSemesters.includes(semNum)) {
+          return NextResponse.json({ success: false, message: 'That Semester is outside your scope' }, { status: 403 });
+        }
+        filter.semester = semNum;
+      } else {
+        filter.semester = { $in: allowedSemesters };
+      }
     }
 
+    // MISS-COVER FIX: sort by the session's own `date` (the actual class
+    // day) instead of `createdAt` (when the document was saved). These
+    // differ whenever a Teacher retakes/covers a class they missed
+    // earlier — that Session is created "just now" but its `date` is
+    // backdated to the real missed day. Sorting by createdAt put it at
+    // the top instead of its real chronological place in the list, which
+    // is what made Session History / Past Sessions look shuffled. `date`
+    // is used first; `createdAt` only breaks ties between sessions that
+    // share the same date.
     const sessions = await Session.find(filter)
       .populate('teacherId', 'name').populate('departmentId', 'name code').populate('subjectId', 'name code')
-      .sort({ createdAt: -1 }).limit(100).lean();
+      .sort({ date: -1, createdAt: -1 }).limit(100).lean();
 
     return NextResponse.json({ success: true, count: sessions.length, sessions });
   } catch (error) { return errorResponse(error); }

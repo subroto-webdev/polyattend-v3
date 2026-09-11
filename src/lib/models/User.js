@@ -2,9 +2,18 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
+  // STUDENT PROFILE-FIRST VALIDATION: a Semester Admin's "Student
+  // Validation" now creates this User document directly — with `name`
+  // and `password` still empty and `registered: false` — instead of a
+  // separate pre-approval record. The student's own registration later
+  // finds THIS SAME document (by Roll + Email) and fills in name/password/
+  // mobile, flipping `registered` to true. So there is only ever one
+  // profile per student, from before they ever register. `name` and
+  // `password` are only actually required once `registered` is true — see
+  // below.
+  name: { type: String, required: function () { return this.registered !== false; }, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true, minlength: 6 },
+  password: { type: String, required: function () { return this.registered !== false; }, minlength: 6 },
   // HIERARCHY: 'subAdmin' manages one Department+Shift; 'semesterAdmin'
   // manages one Department+Shift+Semester under a subAdmin. Both are
   // created via an invite (see AdminInvite model) and are separate from
@@ -17,8 +26,13 @@ const userSchema = new mongoose.Schema({
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
   departmentCode: { type: String, trim: true },
 
-  // Semester Admin scope: department+shift (above) + semester (below).
-  // Teacher also uses `semester` + `section` (Group) once created.
+  // Semester Admin scope: department+shift (above) + semester(s) below.
+  // A single Semester Admin account can be granted MULTIPLE semesters by
+  // their Sub Admin (e.g. covering Semester 3 AND Semester 5 with one
+  // login) — `semesters` is the source of truth for that. `semester`
+  // (singular, below) is kept ONLY for Teacher/Student, who still ever
+  // belong to exactly one.
+  semesters: [{ type: Number, min: 1, max: 8 }],
   semester: { type: Number, min: 1, max: 8 },
   section: { type: String, enum: ['A', 'B', 'C', 'D'] },
 
@@ -39,6 +53,16 @@ const userSchema = new mongoose.Schema({
 
   isActive: { type: Boolean, default: true },
   isVerified: { type: Boolean, default: false },
+  // STUDENT PROFILE-FIRST VALIDATION (continued): true for every account
+  // created the normal way (Teacher, Admin, or any pre-existing Student).
+  // Only ever false for a Student shadow profile a Semester Admin just
+  // validated, that hasn't completed registration yet. `regCode` +
+  // `regCodeExpire` are that shadow profile's one-time 12-digit
+  // registration code (the equivalent of the old StudentPreApproval's
+  // code) — cleared once registration completes.
+  registered: { type: Boolean, default: true },
+  regCode: { type: String },
+  regCodeExpire: { type: Date },
   verificationOTP: { type: String, default: null },
   verificationExpire: { type: Date, default: null },
   resetPasswordOTP: { type: String, default: null },

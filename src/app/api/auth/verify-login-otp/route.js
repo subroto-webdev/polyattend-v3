@@ -50,7 +50,15 @@ export async function POST(request) {
       user: {
         _id: user._id, name: user.name, email: user.email, role: user.role, shift: user.shift,
         studentId: user.studentId, departmentId: user.departmentId, departmentCode: user.departmentCode,
-        semester: user.semester, section: user.section, subjectId: user.subjectId,
+        semester: user.semester,
+        // MULTI-SEMESTER ADMIN: falls back to [semester] for any account
+        // created before this field existed — same rule as requireAuth's
+        // normalizeSemesterAdmin(), duplicated here since this response is
+        // hand-built field-by-field rather than a full User doc.
+        semesters: user.role === 'semesterAdmin'
+          ? ((user.semesters && user.semesters.length) ? user.semesters : (user.semester ? [user.semester] : []))
+          : undefined,
+        section: user.section, subjectId: user.subjectId,
       },
     });
     response.cookies.set('token', token, {

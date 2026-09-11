@@ -91,6 +91,12 @@ export async function POST(request) {
       departmentCode: invite.departmentCode,
       shift: invite.shift,
       semester: invite.semester,
+      // MULTI-SEMESTER ADMIN: a Semester Admin's real scope lives in this
+      // array (see User model) — initialized here with the one semester
+      // this invite granted. A Sub Admin can later add more semesters to
+      // this SAME account (see /api/subAdmin/semester-admins POST,
+      // "existing account" branch) without a second registration.
+      semesters: invite.role === 'semesterAdmin' ? [invite.semester] : undefined,
       section: invite.section,
       mobile: mobile ? mobile.trim() : undefined,
       createdBy: invite.invitedBy,

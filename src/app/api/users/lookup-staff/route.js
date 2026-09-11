@@ -39,7 +39,7 @@ export async function GET(request) {
     if (auth.user.role === 'semesterAdmin') {
       filter.departmentId = auth.user.departmentId;
       filter.shift = auth.user.shift;
-      filter.semester = auth.user.semester;
+      filter.semester = { $in: auth.user.semesters || [] };
     }
 
     // PERFORMANCE: read-only lookup whose result goes straight to JSON —

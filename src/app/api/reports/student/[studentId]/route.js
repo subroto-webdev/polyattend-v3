@@ -39,7 +39,7 @@ export async function GET(request, { params }) {
       }
     }
     if (auth.user.role === 'semesterAdmin') {
-      if (student.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || student.shift !== auth.user.shift || student.semester !== auth.user.semester) {
+      if (student.departmentId?._id?.toString() !== auth.user.departmentId?.toString() || student.shift !== auth.user.shift || !(auth.user.semesters || []).includes(student.semester)) {
         return errorResponse(new Error('This student is outside your scope'), 403);
       }
     }

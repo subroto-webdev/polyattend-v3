@@ -45,7 +45,7 @@ export async function GET(request, { params }) {
       }
     }
     if (auth.user.role === 'semesterAdmin') {
-      if (session.departmentId._id.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || session.semester !== auth.user.semester) {
+      if (session.departmentId._id.toString() !== auth.user.departmentId?.toString() || session.shift !== auth.user.shift || !(auth.user.semesters || []).includes(session.semester)) {
         return errorResponse(new Error('This session is outside your scope'), 403);
       }
     }

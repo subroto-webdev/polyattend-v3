@@ -18,16 +18,40 @@ export const dynamic = 'force-dynamic';
 // student is a graduation, not a move to a semester 9 that doesn't
 // exist, so that case is rejected with a clear message rather than
 // silently corrupting the semester field.
+// POST /api/semesterAdmin/promote
+// Body: { studentIds: [...], fromSemester }
+// Moves the selected Students from `fromSemester` to `fromSemester + 1`
+// within the same Department+Shift. Every registered Student in this
+// Semester Admin's scope for that specific semester is eligible; any
+// student NOT included in `studentIds` simply stays at the current
+// semester (this is how a drop-out is handled — they're just left
+// unselected, no separate "mark as dropped" action needed).
+//
+// MULTI-SEMESTER ADMIN: `fromSemester` is now required and validated
+// against this admin's own `semesters` array — with more than one
+// Semester granted, there's no longer a single implicit one to assume.
+//
+// A Bangladesh polytechnic runs 8 semesters — promoting a semester-8
+// student is a graduation, not a move to a semester 9 that doesn't
+// exist, so that case is rejected with a clear message rather than
+// silently corrupting the semester field.
 export async function POST(request) {
   const auth = await requireAuth(request, ['semesterAdmin']);
   if (auth.error) return auth.error;
   try {
-    const { studentIds } = await request.json();
+    const { studentIds, fromSemester } = await request.json();
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       return NextResponse.json({ success: false, message: 'Select at least one Student' }, { status: 400 });
     }
 
-    const currentSemester = auth.user.semester;
+    const allowedSemesters = auth.user.semesters || [];
+    const currentSemester = fromSemester != null ? parseInt(fromSemester) : (allowedSemesters.length === 1 ? allowedSemesters[0] : null);
+    if (currentSemester == null) {
+      return NextResponse.json({ success: false, message: 'Select which Semester to promote from' }, { status: 400 });
+    }
+    if (!allowedSemesters.includes(currentSemester)) {
+      return NextResponse.json({ success: false, message: 'That Semester is outside your scope' }, { status: 403 });
+    }
     if (currentSemester >= 8) {
       return NextResponse.json({ success: false, message: 'Cannot promote from Semester 8 — this is the final (graduating) semester' }, { status: 400 });
     }

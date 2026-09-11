@@ -12,22 +12,15 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/semesterAdmin/teachers — Semester Admin: list Teachers (and
 // pending invites) who have at least one Subject within their own
-// Department+Shift+Semester.
-//
-// MULTI-SUBJECT: previously this filtered directly on the Teacher's own
-// User.shift/semester fields, which only ever held ONE value — so once a
-// Teacher had subjects in more than one Semester, they'd only show up
-// under whichever Semester Admin happened to match those fields (usually
-// wherever they were first invited), not every Semester Admin whose
-// class they actually teach. Scoping through the Subject collection
-// itself (the actual source of truth for who teaches what) fixes that:
-// every Semester Admin who has assigned this Teacher a Subject sees them.
+// Department+Shift, across EVERY Semester this admin has been granted
+// (see User.semesters) — not just one.
 export async function GET(request) {
   const auth = await requireAuth(request, ['semesterAdmin']);
   if (auth.error) return auth.error;
   try {
+    const allowedSemesters = auth.user.semesters || [];
     const scopeSubjects = await Subject.find({
-      departmentId: auth.user.departmentId, shift: auth.user.shift, semester: auth.user.semester,
+      departmentId: auth.user.departmentId, shift: auth.user.shift, semester: { $in: allowedSemesters },
       teacherId: { $ne: null },
     }).populate('teacherId', 'name email mobile isActive role').populate('departmentId', 'name code').select('teacherId name code section semester departmentId').lean();
 
@@ -38,13 +31,6 @@ export async function GET(request) {
       if (!s.teacherId) continue;
       const tId = s.teacherId._id.toString();
       if (!byTeacher.has(tId)) {
-        // BUG FIX: the previous populate() select omitted `role`, so
-        // PersonCard's fieldsForRole() switch (which branches on
-        // person.role) fell through to its default case and rendered an
-        // empty details row — the card showed name/email/status but no
-        // subject, department, or semester info at all. Including `role`
-        // here restores that. departmentId is populated too so the card
-        // can show which department this teacher belongs to.
         byTeacher.set(tId, { ...s.teacherId, departmentId: s.departmentId, subjects: [] });
       }
       byTeacher.get(tId).subjects.push({ _id: s._id, name: s.name, code: s.code, section: s.section, semester: s.semester });
@@ -53,21 +39,22 @@ export async function GET(request) {
 
     const pendingInvites = await AdminInvite.find({
       role: 'teacher', departmentId: auth.user.departmentId,
-      shift: auth.user.shift, semester: auth.user.semester,
+      shift: auth.user.shift, semester: { $in: allowedSemesters },
       used: false, codeExpire: { $gt: new Date() },
-    }).sort({ section: 1 }).lean();
+    }).sort({ semester: 1, section: 1 }).lean();
 
     return NextResponse.json({ success: true, teachers, pendingInvites });
   } catch (error) { return errorResponse(error); }
 }
 
-// GET /api/semesterAdmin/teachers?lookupEmail=... is handled via a query
-// param on this same GET above would conflate two shapes of response, so
-// existing-teacher lookup gets its own endpoint — see
-// /api/semesterAdmin/teachers/lookup/route.js.
-
 // POST /api/semesterAdmin/teachers — Semester Admin: assign a Subject +
-// Group within their own Department+Shift+Semester to a Teacher.
+// Group, for ONE of this admin's own granted Semesters, to a Teacher.
+//
+// MULTI-SEMESTER ADMIN: `semester` is now required in the request body —
+// with multiple Semesters granted, there's no longer a single implicit
+// one to assume. It's validated against this admin's own `semesters`
+// array so they still can't act outside their granted scope. When this
+// admin only has ONE granted Semester, it's used automatically.
 //
 // MULTI-SUBJECT: if `email` belongs to an EXISTING Teacher account
 // (anywhere in the system — not just this Semester Admin's own scope),
@@ -80,7 +67,7 @@ export async function POST(request) {
   const auth = await requireAuth(request, ['semesterAdmin']);
   if (auth.error) return auth.error;
   try {
-    const { name, email, subjectName, subjectCode, section } = await request.json();
+    const { name, email, subjectName, subjectCode, section, semester } = await request.json();
 
     if (!email || !subjectName || !subjectCode || !section) {
       return NextResponse.json({ success: false, message: 'Enter Email, Subject, Subject Code and Group' }, { status: 400 });
@@ -89,24 +76,32 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Select a valid Group (A-D)' }, { status: 400 });
     }
 
+    const allowedSemesters = auth.user.semesters || [];
+    const semesterNum = semester != null ? parseInt(semester) : (allowedSemesters.length === 1 ? allowedSemesters[0] : null);
+    if (semesterNum == null) {
+      return NextResponse.json({ success: false, message: 'Select which Semester this Subject belongs to' }, { status: 400 });
+    }
+    if (!allowedSemesters.includes(semesterNum)) {
+      return NextResponse.json({ success: false, message: 'That Semester is outside your scope' }, { status: 403 });
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedCode = subjectCode.trim().toUpperCase();
 
     const departmentId = auth.user.departmentId;
     const departmentCode = auth.user.departmentCode;
     const shift = auth.user.shift;
-    const semester = auth.user.semester;
 
     // RULE: one Subject = one Teacher, no duplicates — checked against both
     // an already-created Subject (real teacher assigned) and any pending
     // invite for the same Subject+Group, so two invites can't race for the
     // same slot either.
-    const existingSubject = await Subject.findOne({ code: normalizedCode, departmentId, semester, section, shift });
+    const existingSubject = await Subject.findOne({ code: normalizedCode, departmentId, semester: semesterNum, section, shift });
     if (existingSubject?.teacherId) {
       return NextResponse.json({ success: false, message: `A Teacher is already assigned for ${subjectName} (${normalizedCode}) — Group ${section}` }, { status: 400 });
     }
     const existingInvite = await AdminInvite.findOne({
-      role: 'teacher', departmentId, shift, semester, section, subjectCode: normalizedCode,
+      role: 'teacher', departmentId, shift, semester: semesterNum, section, subjectCode: normalizedCode,
       used: false, codeExpire: { $gt: new Date() },
     });
     if (existingInvite) {
@@ -125,7 +120,7 @@ export async function POST(request) {
 
       const subject = existingSubject
         ? Object.assign(existingSubject, { name: subjectName, teacherId: existingUser._id })
-        : new Subject({ name: subjectName, code: normalizedCode, departmentId, semester, section, shift, teacherId: existingUser._id });
+        : new Subject({ name: subjectName, code: normalizedCode, departmentId, semester: semesterNum, section, shift, teacherId: existingUser._id });
       await subject.save();
 
       return NextResponse.json({
@@ -147,7 +142,7 @@ export async function POST(request) {
     const invite = await AdminInvite.create({
       role: 'teacher',
       name, email: normalizedEmail,
-      departmentId, departmentCode, shift, semester, section,
+      departmentId, departmentCode, shift, semester: semesterNum, section,
       subjectName, subjectCode: normalizedCode,
       invitedBy: auth.user._id,
       code, codeExpire,
@@ -164,7 +159,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       message: `Registration code sent to ${name}'s email`,
-      invite: { _id: invite._id, name: invite.name, email: invite.email, subjectName, subjectCode: normalizedCode, section, codeExpire },
+      invite: { _id: invite._id, name: invite.name, email: invite.email, subjectName, subjectCode: normalizedCode, section, semester: semesterNum, codeExpire },
     }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }

@@ -13,8 +13,19 @@ import Modal from '@/components/common/Modal';
 // this Semester Admin's list and into the next semester's. Anyone left
 // unchecked simply stays at the current semester — that's how a drop-out
 // is represented, no separate action needed.
+//
+// MULTI-SEMESTER ADMIN: promotion is done ONE Semester at a time — if
+// this admin has more than one granted Semester, a tab selector picks
+// which one is "the current semester" being promoted from.
 export default function SemesterAdminPromotion() {
   const { user } = useAuth();
+  const allowedSemesters = user?.semesters && user.semesters.length ? user.semesters : (user?.semester ? [user.semester] : []);
+  const [fromSemester, setFromSemester] = useState(null);
+  useEffect(() => {
+    if (allowedSemesters.length && fromSemester == null) setFromSemester(allowedSemesters[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
@@ -23,12 +34,13 @@ export default function SemesterAdminPromotion() {
   const [promoting, setPromoting] = useState(false);
 
   const load = () => {
+    if (fromSemester == null) return;
     setLoading(true);
-    api.get('/users', { params: { role: 'student' } })
+    api.get('/users', { params: { role: 'student', semester: fromSemester } })
       .then(r => setStudents(r.data.users || []))
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => { setSelected(new Set()); load(); }, [fromSemester]);
 
   const filtered = students.filter(s =>
     !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,14 +63,14 @@ export default function SemesterAdminPromotion() {
     }
   };
 
-  const currentSemester = user?.semester;
+  const currentSemester = fromSemester;
   const nextSemester = currentSemester ? currentSemester + 1 : null;
   const atFinalSemester = currentSemester >= 8;
 
   const handlePromote = async () => {
     setPromoting(true);
     try {
-      const res = await api.post('/semesterAdmin/promote', { studentIds: Array.from(selected) });
+      const res = await api.post('/semesterAdmin/promote', { studentIds: Array.from(selected), fromSemester: currentSemester });
       toast.success(res.data.message);
       setSelected(new Set());
       setShowConfirm(false);
@@ -86,6 +98,30 @@ export default function SemesterAdminPromotion() {
           </p>
         </div>
       </div>
+
+      {/* MULTI-SEMESTER ADMIN: only shown once this admin has more than
+          one granted Semester — switching tabs reloads the roster and
+          resets any current selection, since promotion always happens
+          for exactly one Semester at a time. */}
+      {allowedSemesters.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          {allowedSemesters.map(sem => (
+            <button
+              key={sem}
+              onClick={() => setFromSemester(sem)}
+              style={{
+                padding: '7px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                background: fromSemester === sem ? 'var(--primary)' : 'var(--bg3)',
+                color: fromSemester === sem ? '#fff' : 'var(--txt2)',
+                transition: 'all .18s ease',
+              }}
+            >
+              Semester {sem}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!atFinalSemester && (
         <>

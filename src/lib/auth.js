@@ -7,6 +7,21 @@ export function generateToken(id) {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
 }
 
+// MULTI-SEMESTER ADMIN: a Semester Admin's granted semesters live in
+// `semesters` (array) — see User model. Accounts created before this
+// feature existed (or any created straight from `semester` for some
+// other reason) only have the old singular `semester` field set. This
+// normalizes every semesterAdmin user object to always have a populated
+// `semesters` array, falling back to `[semester]` — so every place in
+// the codebase can safely just read `user.semesters` without a legacy
+// branch of its own.
+export function normalizeSemesterAdmin(user) {
+  if (user && user.role === 'semesterAdmin' && (!user.semesters || user.semesters.length === 0) && user.semester) {
+    user.semesters = [user.semester];
+  }
+  return user;
+}
+
 /**
  * Authenticates the request using the Bearer token and (optionally) checks role.
  * Returns { user } on success, or { error: NextResponse } on failure.
@@ -30,6 +45,7 @@ export async function requireAuth(request, roles = null) {
     if (roles && !roles.includes(user.role)) {
       return { error: NextResponse.json({ success: false, message: `Role '${user.role}' is not authorized to access this route` }, { status: 403 }) };
     }
+    normalizeSemesterAdmin(user);
     return { user };
   } catch (error) {
     return { error: NextResponse.json({ success: false, message: 'Not authorized, token failed' }, { status: 401 }) };

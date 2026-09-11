@@ -18,7 +18,7 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     const invite = await AdminInvite.findOne({
       _id: id, role: 'teacher',
-      departmentId: auth.user.departmentId, shift: auth.user.shift, semester: auth.user.semester,
+      departmentId: auth.user.departmentId, shift: auth.user.shift, semester: { $in: auth.user.semesters || [] },
     });
     if (!invite) {
       return NextResponse.json({ success: false, message: 'Invite not found' }, { status: 404 });

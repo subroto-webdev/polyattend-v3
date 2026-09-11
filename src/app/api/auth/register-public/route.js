@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 import PendingRegistration from '@/lib/models/PendingRegistration';
-import StudentPreApproval from '@/lib/models/StudentPreApproval';
 import sendEmail from '@/lib/sendEmail';
 import { errorResponse } from '@/lib/auth';
 import { isStrongPassword } from '@/lib/validatePassword';
@@ -12,15 +11,27 @@ export const dynamic = 'force-dynamic';
 
 // POST /api/auth/register-public
 // ── FIX (Requirement #5) ────────────────────────────────────────────────
-// No real User is created here anymore. The submitted data is held in a
-// PendingRegistration doc (hashed password, same as before) alongside a
-// fresh OTP. The real account only gets created in /api/auth/verify-email
-// once that OTP is confirmed — so anyone who abandons signup before
-// verifying leaves nothing permanent in the User collection.
+// No real, LOGGABLE-IN account is finalized here. The submitted data is
+// held in a PendingRegistration doc (hashed password, same as before)
+// alongside a fresh OTP. The account only gets finalized in
+// /api/auth/verify-email once that OTP is confirmed.
+//
+// STUDENT PROFILE-FIRST VALIDATION: a Student's User document (role
+// 'student') already exists from the moment their Semester Admin
+// validated their Roll+Email+Group — with Name/Password still empty and
+// `registered: false` (see User model). This route finds THAT SAME
+// shadow document (instead of a separate StudentPreApproval record) and
+// checks the Roll+Email+Code against it; verify-email later fills in
+// Name/Password on it directly, rather than creating a second document.
+//
+// SIMPLIFIED FORM: Department/Semester/Group/Shift are no longer taken
+// from the Student at all — their Semester Admin already fixed all four
+// on the shadow profile, so there's nothing left to pick (or get wrong).
+// They only ever come from `shadow.*` below.
 export async function POST(request) {
   await dbConnect();
   try {
-    const { name, email, password, role, studentId, departmentId, semester, section, shift, preApprovalCode, mobile } = await request.json();
+    const { name, email, password, role, studentId, preApprovalCode, mobile } = await request.json();
 
     // RATE LIMIT: this endpoint checks a 12-digit preApprovalCode — this
     // cap is what stops that code from being brute-forced, and also
@@ -51,12 +62,15 @@ export async function POST(request) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Already a real, registered account?
-    const existing = await User.findOne({ email: normalizedEmail });
+    // Already a real, FULLY REGISTERED account? A shadow profile
+    // (registered: false) sharing this exact Email is expected — that's
+    // the one this registration is meant to complete — so it's excluded
+    // here rather than rejected as a conflict.
+    const existing = await User.findOne({ email: normalizedEmail, registered: { $ne: false } });
     if (existing) return NextResponse.json({ success: false, message: 'An account already exists with this email' }, { status: 400 });
 
-    if (!studentId || !departmentId || !semester || !section || !shift) {
-      return NextResponse.json({ success: false, message: 'Enter Student ID, Department, Semester, Group and Shift' }, { status: 400 });
+    if (!studentId) {
+      return NextResponse.json({ success: false, message: 'Enter your Student Roll' }, { status: 400 });
     }
     // SECURITY: mobile was previously optional and only checked on the
     // frontend — a direct API call could skip it entirely. Now enforced
@@ -68,40 +82,37 @@ export async function POST(request) {
     if (!/^01[0-9]{9}$/.test(mobile.trim())) {
       return NextResponse.json({ success: false, message: 'Enter a valid 11-digit mobile number (e.g. 01XXXXXXXXX)' }, { status: 400 });
     }
-    const existingStudent = await User.findOne({ studentId });
+    // Same reasoning as the Email check above — a shadow profile with
+    // this Roll is expected and excluded, only a FULLY REGISTERED
+    // duplicate Roll is a real conflict.
+    const existingStudent = await User.findOne({ studentId, registered: { $ne: false } });
     if (existingStudent) return NextResponse.json({ success: false, message: 'This Student ID is already registered' }, { status: 400 });
 
     // VALIDATION: a student can only register with a Roll+Email that a
-    // Semester Admin pre-approved (single entry or bulk Excel upload) and
-    // the matching 12-digit code — this is what stops one person
-    // registering multiple times under different emails, since only
-    // whitelisted Roll+Email pairs are ever accepted here. Once a
-    // pre-approval is used it's marked used and can never register again.
+    // Semester Admin already validated (single entry or bulk Excel
+    // upload — see /api/semesterAdmin/students) and the matching 12-digit
+    // code — this is what stops one person registering multiple times
+    // under different emails, since only whitelisted Roll+Email pairs
+    // ever have a shadow profile to match against. Once used, that
+    // profile is flipped to `registered: true` (see verify-email) and can
+    // never be re-registered.
     if (!preApprovalCode) {
       return NextResponse.json({ success: false, message: 'Enter the 12-digit Registration Code sent by your Semester Admin' }, { status: 400 });
     }
-    const preApproval = await StudentPreApproval.findOne({
-      roll: studentId.trim(),
+    const shadow = await User.findOne({
+      studentId: studentId.trim(),
       email: normalizedEmail,
-      code: preApprovalCode.trim().toUpperCase(),
-      used: false,
-      codeExpire: { $gt: new Date() },
+      role: 'student',
+      registered: false,
+      regCode: preApprovalCode.trim().toUpperCase(),
+      regCodeExpire: { $gt: new Date() },
     });
-    if (!preApproval) {
+    if (!shadow) {
       return NextResponse.json({ success: false, message: 'Roll, Email or Code does not match, or the Code has expired. Please contact your Semester Admin.' }, { status: 400 });
     }
-
-    // The Semester Admin's pre-approval is the source of truth for
-    // department/semester/shift (see below) — but if what the student
-    // picked in the form doesn't match it at all, that's worth surfacing
-    // rather than silently switching them into a different scope than
-    // they expected.
-    if (String(preApproval.departmentId) !== String(departmentId) || String(preApproval.semester) !== String(semester) || preApproval.shift !== shift) {
-      return NextResponse.json({
-        success: false,
-        message: 'Your selected Department/Semester/Shift does not match what was set for your Roll. Please select the correct Department/Semester/Shift, or contact your Semester Admin.',
-      }, { status: 400 });
-    }
+    // Department/Semester/Shift/Group only ever come from the shadow
+    // profile itself now — there is nothing left to cross-check against a
+    // student-supplied value, since the form no longer asks for them.
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
@@ -109,20 +120,10 @@ export async function POST(request) {
     // Replace any earlier, never-verified attempt for this email with a fresh one.
     await PendingRegistration.deleteMany({ email: normalizedEmail });
 
-    // BUG FIX: previously this used the department/semester/shift the
-    // student themselves picked in the registration form's dropdowns —
-    // never checked against what the Semester Admin actually pre-approved.
-    // A wrong dropdown pick (or a stale default) silently created the
-    // account in the wrong scope, so it never matched any Sub Admin's or
-    // Semester Admin's filter (only the unscoped Super Admin saw it). The
-    // pre-approval entry is the source of truth for these three fields —
-    // the student's own selection is now ignored for them, and `section`
-    // (Group) is the only one still taken from the form since pre-approval
-    // doesn't record a Group.
     const pending = await PendingRegistration.create({
       name, email: normalizedEmail, password, role: 'student',
-      studentId, departmentId: preApproval.departmentId, semester: preApproval.semester, section, shift: preApproval.shift,
-      preApprovalId: preApproval._id,
+      studentId, departmentId: shadow.departmentId, semester: shadow.semester, section: shadow.section, shift: shadow.shift,
+      shadowStudentId: shadow._id,
       mobile: mobile.trim(),
       otp, otpExpire,
     });

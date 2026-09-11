@@ -44,7 +44,19 @@ export async function GET(request) {
     if (auth.user.role === 'semesterAdmin') {
       filter.departmentId = auth.user.departmentId;
       filter.shift = auth.user.shift;
-      filter.semester = auth.user.semester;
+      // MULTI-SEMESTER ADMIN: honor a caller-specified semester (validated
+      // against this admin's granted semesters); otherwise span every
+      // semester they manage.
+      const allowedSemesters = auth.user.semesters || [];
+      if (semester) {
+        const semNum = parseInt(semester);
+        if (!allowedSemesters.includes(semNum)) {
+          return NextResponse.json({ success: false, message: 'That Semester is outside your scope' }, { status: 403 });
+        }
+        filter.semester = semNum;
+      } else {
+        filter.semester = { $in: allowedSemesters };
+      }
     }
 
     // FEATURE: Student "My Teachers" view (subject-wise teacher contact)

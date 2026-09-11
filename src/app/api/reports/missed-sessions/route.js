@@ -60,7 +60,7 @@ export async function GET(request) {
     } else if (auth.user.role === 'semesterAdmin') {
       subjectFilter.departmentId = auth.user.departmentId;
       subjectFilter.shift = auth.user.shift;
-      subjectFilter.semester = auth.user.semester;
+      subjectFilter.semester = { $in: auth.user.semesters || [] };
     } else if (auth.user.role === 'subAdmin') {
       subjectFilter.departmentId = auth.user.departmentId;
       subjectFilter.shift = auth.user.shift;

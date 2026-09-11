@@ -15,7 +15,10 @@ export async function GET(request) {
     const section = searchParams.get('section');
     const shift = searchParams.get('shift');
 
-    const filter = { role: 'student', departmentId, semester: parseInt(semester), section, isActive: true };
+    // STUDENT PROFILE-FIRST VALIDATION: exclude unregistered shadow
+    // profiles (see User model) — this is an attendance-roster lookup,
+    // not the Student Validation queue.
+    const filter = { role: 'student', departmentId, semester: parseInt(semester), section, isActive: true, registered: { $ne: false } };
     if (shift) filter.shift = shift;
 
     const students = await User.find(filter).select('-password').populate('departmentId', 'name code').lean();

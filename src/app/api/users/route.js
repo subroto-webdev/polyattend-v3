@@ -23,6 +23,14 @@ export async function GET(request) {
     if (semester) filter.semester = parseInt(semester);
     if (section) filter.section = section;
     if (shift) filter.shift = shift;
+    // STUDENT PROFILE-FIRST VALIDATION: a Semester Admin's "Student
+    // Validation" now creates a real Student User document immediately
+    // (Name/Password still empty, `registered: false`) — see User model.
+    // This general listing (attendance rosters, Promotion, dashboards,
+    // search) is not where those unregistered shadow profiles should
+    // ever surface; Student Validation itself reads them through its own
+    // dedicated endpoint (/api/semesterAdmin/students).
+    if (filter.role === 'student') filter.registered = { $ne: false };
     if (search) {
       // SECURITY FIX: `search` was interpolated directly into $regex. A
       // crafted value (e.g. unbalanced parentheses, or a catastrophic
@@ -53,7 +61,21 @@ export async function GET(request) {
     if (auth.user.role === 'semesterAdmin') {
       filter.departmentId = auth.user.departmentId;
       filter.shift = auth.user.shift;
-      filter.semester = auth.user.semester;
+      // MULTI-SEMESTER ADMIN: if the caller asked for one specific
+      // semester (e.g. a class roster for exactly Semester 5), honor it —
+      // but only if that semester is actually one of this admin's granted
+      // semesters. With no semester specified, results span every
+      // semester they manage.
+      const allowedSemesters = auth.user.semesters || [];
+      if (semester) {
+        const semNum = parseInt(semester);
+        if (!allowedSemesters.includes(semNum)) {
+          return NextResponse.json({ success: false, message: 'That Semester is outside your scope' }, { status: 403 });
+        }
+        filter.semester = semNum;
+      } else {
+        filter.semester = { $in: allowedSemesters };
+      }
     }
 
     // COUNT-ONLY (opt-in): callers that only need a number (e.g. the

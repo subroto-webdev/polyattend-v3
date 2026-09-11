@@ -52,7 +52,7 @@ export async function GET(request) {
     } else if (auth.user.role === 'semesterAdmin') {
       subjectFilter.departmentId = auth.user.departmentId;
       subjectFilter.shift = auth.user.shift;
-      subjectFilter.semester = auth.user.semester;
+      subjectFilter.semester = { $in: auth.user.semesters || [] };
     } else {
       const departmentId = searchParams.get('departmentId');
       const shift = searchParams.get('shift');

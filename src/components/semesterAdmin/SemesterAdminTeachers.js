@@ -6,10 +6,18 @@ import toast from 'react-hot-toast';
 import PersonCard, { PersonCardGrid } from '@/components/common/PersonCard';
 import Modal from '@/components/common/Modal';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import { useAuth } from '@/context/AuthContext';
 
 const GROUPS = ['A', 'B', 'C', 'D'];
 
 export default function SemesterAdminTeachers() {
+  const { user } = useAuth();
+  // MULTI-SEMESTER ADMIN: which Semester a new Subject/Teacher is being
+  // assigned to is now an explicit choice — no longer implicitly "the
+  // Semester Admin's one semester". Only shown as a selector once this
+  // admin actually has more than one granted Semester; with just one, it's
+  // used automatically and the form stays exactly as simple as before.
+  const allowedSemesters = user?.semesters && user.semesters.length ? user.semesters : (user?.semester ? [user.semester] : []);
   const [teachers, setTeachers] = useState([]);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +26,7 @@ export default function SemesterAdminTeachers() {
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
-  const [form, setForm] = useState({ name: '', email: '', subjectName: '', subjectCode: '', section: '' });
+  const [form, setForm] = useState({ name: '', email: '', subjectName: '', subjectCode: '', section: '', semester: null });
 
   // MULTI-SUBJECT: as the Semester Admin types an email, this looks it up
   // to tell them up-front whether it belongs to an existing Teacher
@@ -54,7 +62,10 @@ export default function SemesterAdminTeachers() {
   const set = f => e => setForm(p => ({ ...p, [f]: e.target.value }));
 
   const openCreate = () => {
-    setForm({ name: '', email: '', subjectName: '', subjectCode: '', section: '' });
+    setForm({
+      name: '', email: '', subjectName: '', subjectCode: '', section: '',
+      semester: allowedSemesters.length === 1 ? allowedSemesters[0] : null,
+    });
     setLookup(null);
     setShowModal(true);
   };
@@ -65,6 +76,9 @@ export default function SemesterAdminTeachers() {
   const handleSubmit = async () => {
     if (!form.email || !form.subjectName || !form.subjectCode || !form.section) {
       return toast.error('Enter Email, Subject, Subject Code and Group');
+    }
+    if (allowedSemesters.length > 1 && !form.semester) {
+      return toast.error('Select which Semester this Subject belongs to');
     }
     if (!isExistingTeacher && !form.name) {
       return toast.error('Enter Name for the new Teacher');
@@ -232,6 +246,31 @@ export default function SemesterAdminTeachers() {
               <div className="form-group">
                 <label className="form-label">Teacher Name *</label>
                 <input className="form-input" placeholder="Full Name" value={form.name} onChange={set('name')} />
+              </div>
+            )}
+            {allowedSemesters.length > 1 && (
+              <div className="form-group">
+                <label className="form-label">Semester *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(allowedSemesters.length, 4)}, 1fr)`, gap: 8 }}>
+                  {allowedSemesters.map(sem => {
+                    const selected = form.semester === sem;
+                    return (
+                      <button
+                        key={sem} type="button"
+                        onClick={() => setForm(p => ({ ...p, semester: sem }))}
+                        style={{
+                          padding: '10px 0', borderRadius: 10, textAlign: 'center',
+                          border: selected ? '2px solid var(--primary)' : '2px solid var(--border2)',
+                          background: selected ? 'var(--primary-light)' : 'var(--bg)',
+                          color: selected ? 'var(--primary)' : 'var(--txt)',
+                          cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+                        }}
+                      >
+                        {sem}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
             <div className="form-group">

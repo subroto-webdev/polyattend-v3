@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 import PendingRegistration from '@/lib/models/PendingRegistration';
-import StudentPreApproval from '@/lib/models/StudentPreApproval';
 import { errorResponse } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rateLimit';
 
@@ -10,10 +9,17 @@ export const dynamic = 'force-dynamic';
 
 // POST /api/auth/verify-email
 // ── FIX (Requirement #5) ────────────────────────────────────────────────
-// The real User account is created here, and only here — after the OTP the
-// person submits matches a still-valid PendingRegistration. Nothing is
-// written to the User collection before this point, so an abandoned or
-// failed verification leaves no account behind.
+// The account only becomes usable here — after the OTP the person submits
+// matches a still-valid PendingRegistration.
+//
+// STUDENT PROFILE-FIRST VALIDATION: for a Student, this does NOT insert a
+// new User document. `pending.shadowStudentId` points at the SAME Student
+// profile their Semester Admin already validated (Roll+Email+Group,
+// registered: false) — this just fills in Name/Password/Mobile on that
+// existing document and flips `registered` to true. So there's only ever
+// one profile per student, from before they ever registered through to
+// being a fully active account. Teacher/legacy flows (no shadow to update)
+// still insert a fresh document, same as before.
 //
 // This same endpoint also still supports the older "already-created but
 // unverified" User flow (for any account that existed before this fix, or
@@ -39,67 +45,79 @@ export async function POST(request) {
 
     if (pending) {
       // Re-check for race conditions: someone else may have grabbed this
-      // email or studentId while this OTP was outstanding.
-      const emailTaken = await User.findOne({ email: pending.email });
+      // email or studentId while this OTP was outstanding. A shadow
+      // profile (registered: false) sharing the Email/Roll is expected —
+      // it's what's about to be filled in — so it's excluded here, same
+      // as in register-public.
+      const emailTaken = await User.findOne({ email: pending.email, registered: { $ne: false } });
       if (emailTaken) {
         await PendingRegistration.findByIdAndDelete(pending._id);
         return NextResponse.json({ success: false, message: 'An account already exists with this email' }, { status: 400 });
       }
       if (pending.role === 'student' && pending.studentId) {
-        const studentIdTaken = await User.findOne({ studentId: pending.studentId });
+        const studentIdTaken = await User.findOne({ studentId: pending.studentId, registered: { $ne: false } });
         if (studentIdTaken) {
           await PendingRegistration.findByIdAndDelete(pending._id);
           return NextResponse.json({ success: false, message: 'This Student ID is already registered' }, { status: 400 });
         }
       }
 
+      const now = new Date();
       // IMPORTANT: pending.password is already bcrypt-hashed (PendingRegistration
-      // has its own pre-save hash hook). If we went through `new User(...).save()`,
-      // User's own pre-save hook would see password as "modified" on this brand-new
-      // document and hash it a SECOND time — locking the person out of the account
-      // they just verified. To avoid that, insert the already-hashed password
-      // directly via the native collection, bypassing Mongoose's pre-save hook.
-      // Mobile comes only from the student's own registration form (stored
-      // in PendingRegistration) — StudentPreApproval no longer collects a
-      // Mobile Number (Semester Admin pre-approval is Roll + Email only).
-      let createdBy;
-      const mobile = pending.mobile;
-      if (pending.preApprovalId) {
-        const preApproval = await StudentPreApproval.findById(pending.preApprovalId);
-        if (preApproval) createdBy = preApproval.addedBy;
+      // has its own pre-save hash hook). Updating via the native collection
+      // (bypassing Mongoose's pre-save hook, same reasoning as before) avoids
+      // hashing it a SECOND time — which would lock the person out of the
+      // account they just verified.
+      let updateResult = { matchedCount: 0 };
+      if (pending.role === 'student' && pending.shadowStudentId) {
+        updateResult = await User.collection.updateOne(
+          { _id: pending.shadowStudentId, role: 'student', registered: false },
+          {
+            $set: {
+              name: pending.name,
+              password: pending.password,
+              mobile: pending.mobile,
+              departmentId: pending.departmentId,
+              semester: pending.semester,
+              section: pending.section,
+              shift: pending.shift,
+              isActive: true,
+              isVerified: true,
+              registered: true,
+              updatedAt: now,
+            },
+            $unset: { regCode: '', regCodeExpire: '' },
+          }
+        );
       }
 
-      const now = new Date();
-      const insertResult = await User.collection.insertOne({
-        name: pending.name,
-        email: pending.email,
-        password: pending.password,
-        role: pending.role,
-        studentId: pending.studentId,
-        departmentId: pending.departmentId,
-        semester: pending.semester,
-        section: pending.section,
-        shift: pending.shift,
-        mobile,
-        createdBy,
-        isActive: true,
-        isVerified: true,
-        verificationOTP: null,
-        verificationExpire: null,
-        resetPasswordOTP: null,
-        resetPasswordExpire: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      // VALIDATION: only now — after a real, verified account actually
-      // exists — is the Roll+Email pre-approval consumed. This is the step
-      // that permanently prevents that same Roll/Email from ever being
-      // used to register a second account.
-      if (pending.preApprovalId) {
-        await StudentPreApproval.findByIdAndUpdate(pending.preApprovalId, {
-          used: true, usedAt: now, usedByUserId: insertResult.insertedId,
+      let insertedId = pending.shadowStudentId;
+      if (updateResult.matchedCount === 0) {
+        // No shadow profile to update (Teacher/legacy flow, or the shadow
+        // was somehow deleted in the meantime) — fall back to inserting a
+        // fresh document, same as the original behavior.
+        const insertResult = await User.collection.insertOne({
+          name: pending.name,
+          email: pending.email,
+          password: pending.password,
+          role: pending.role,
+          studentId: pending.studentId,
+          departmentId: pending.departmentId,
+          semester: pending.semester,
+          section: pending.section,
+          shift: pending.shift,
+          mobile: pending.mobile,
+          isActive: true,
+          isVerified: true,
+          registered: true,
+          verificationOTP: null,
+          verificationExpire: null,
+          resetPasswordOTP: null,
+          resetPasswordExpire: null,
+          createdAt: now,
+          updatedAt: now,
         });
+        insertedId = insertResult.insertedId;
       }
 
       await PendingRegistration.findByIdAndDelete(pending._id);

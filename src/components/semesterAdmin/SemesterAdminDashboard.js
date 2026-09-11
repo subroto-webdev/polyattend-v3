@@ -28,20 +28,26 @@ export default function SemesterAdminDashboard() {
 
   useEffect(() => {
     if (!user) return;
+    const allowedSemesters = user.semesters && user.semesters.length ? user.semesters : (user.semester ? [user.semester] : []);
     // PERFORMANCE: previously fetched the full teacher and student lists
     // just to read `.count` off the response — downloading every one of
     // this Semester Admin's students on every dashboard load. `countOnly`
     // returns just the number, no documents.
+    //
+    // MULTI-SEMESTER ADMIN: Pending Validation is fetched once PER granted
+    // Semester (the endpoint itself keeps each Semester's queue strictly
+    // separate — see /api/semesterAdmin/students) and summed here just for
+    // this one dashboard total.
     Promise.all([
       api.get('/users', { params: { role: 'teacher', countOnly: true } }),
       api.get('/users', { params: { role: 'student', countOnly: true } }),
-      api.get('/semesterAdmin/students'),
-    ]).then(([t, st, pre]) => {
-      const entries = pre.data.entries || [];
+      Promise.all(allowedSemesters.map(sem => api.get('/semesterAdmin/students', { params: { semester: sem } }))),
+    ]).then(([t, st, preResults]) => {
+      const pendingCount = preResults.reduce((sum, r) => sum + (r.data.entries || []).filter(e => !e.used).length, 0);
       setStats({
         teachers: t.data.count || 0,
         students: st.data.count || 0,
-        pendingStudents: entries.filter(e => !e.used).length,
+        pendingStudents: pendingCount,
       });
     }).finally(() => setLoading(false));
   }, [user]);
@@ -49,10 +55,11 @@ export default function SemesterAdminDashboard() {
   if (loading) return <DashboardLoading />;
 
   const greeting = getGreeting(now);
+  const grantedSemesters = user?.semesters && user.semesters.length ? user.semesters : (user?.semester ? [user.semester] : []);
   const badges = [
     user?.departmentId?.name || user?.departmentCode,
     SHIFT_LABEL[user?.shift] || user?.shift,
-    user?.semester ? `Semester ${user.semester}` : null,
+    ...grantedSemesters.map(sem => `Semester ${sem}`),
   ].filter(Boolean);
 
   return (

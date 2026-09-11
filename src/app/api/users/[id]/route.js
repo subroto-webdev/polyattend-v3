@@ -48,7 +48,7 @@ export async function PUT(request, { params }) {
       const inScope = ['teacher', 'student'].includes(target.role)
         && String(target.departmentId) === String(auth.user.departmentId)
         && target.shift === auth.user.shift
-        && target.semester === auth.user.semester;
+        && (auth.user.semesters || []).includes(target.semester);
       if (!inScope) return NextResponse.json({ success: false, message: 'You cannot edit a user outside your scope' }, { status: 403 });
     }
 
@@ -106,7 +106,7 @@ export async function DELETE(request, { params }) {
       const inScope = ['teacher', 'student'].includes(target.role)
         && String(target.departmentId) === String(auth.user.departmentId)
         && target.shift === auth.user.shift
-        && target.semester === auth.user.semester;
+        && (auth.user.semesters || []).includes(target.semester);
       if (!inScope) return NextResponse.json({ success: false, message: 'You cannot delete a user outside your scope' }, { status: 403 });
     }
 

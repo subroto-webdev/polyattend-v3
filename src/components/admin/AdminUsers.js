@@ -311,7 +311,7 @@ function TableRow({ user, rowNum, onToggle, onDelete, isSelf }) {
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function AdminUsers({
-  roleFilters = ['all', 'student', 'teacher', 'admin'],
+  roleFilters = ['all', 'teacher', 'admin'],
   title = 'Users Management',
   subtitle = 'Manage all system users',
 }) {
@@ -326,6 +326,8 @@ export default function AdminUsers({
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [roleCounts, setRoleCounts] = useState({});
+  const [countLoading, setCountLoading] = useState(true);
   const PAGE_SIZE = 50;
 
   const groupedUsers = useMemo(() => {
@@ -347,9 +349,10 @@ export default function AdminUsers({
   }, [users]);
 
   const load = (pageToLoad = page) => {
+    if (roleFilter === 'all') return; // summary view — no list needed
     setLoading(true);
     const params = { page: pageToLoad, limit: PAGE_SIZE };
-    if (roleFilter !== 'all') params.role = roleFilter;
+    if (roleFilter !== 'browse') params.role = roleFilter; // 'browse' = no role filter
     if (search) params.search = search;
     api.get('/users', { params }).then(r => {
       setUsers(r.data.users || []);
@@ -359,7 +362,33 @@ export default function AdminUsers({
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, [roleFilter]);
+  useEffect(() => {
+    setUsers([]);
+    if (roleFilter !== 'all') load(1);
+  }, [roleFilter]);
+
+  // Fetch per-role counts + grand total once on mount
+  useEffect(() => {
+    setCountLoading(true);
+    const roles = ['student', 'teacher', 'admin', 'subAdmin', 'semesterAdmin'];
+    Promise.all([
+      // grand total
+      api.get('/users', { params: { limit: 1 } })
+        .then(res => ({ role: '_total', count: res.data.total ?? 0 }))
+        .catch(() => ({ role: '_total', count: 0 })),
+      // per role
+      ...roles.map(r =>
+        api.get('/users', { params: { role: r, limit: 1 } })
+          .then(res => ({ role: r, count: res.data.total ?? 0 }))
+          .catch(() => ({ role: r, count: 0 }))
+      ),
+    ]).then(results => {
+      const counts = {};
+      results.forEach(({ role, count }) => { counts[role] = count; });
+      setRoleCounts(counts);
+      setTotal(counts._total || 0);
+    }).finally(() => setCountLoading(false));
+  }, []);
 
   const handleSearch = (e) => { e.preventDefault(); load(1); };
   const goToPage = (p) => { if (p >= 1 && p <= totalPages && p !== page) load(p); };
@@ -383,7 +412,7 @@ export default function AdminUsers({
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (confirmText.trim() !== deleteTarget.name.trim()) {
+    if (confirmText.trim() !== (deleteTarget.name || '').trim()) {
       toast.error('Name does not match — type the exact name');
       return;
     }
@@ -400,7 +429,86 @@ export default function AdminUsers({
     }
   };
 
-  const FILTER_LABELS = { all: 'All Users', student: 'Students', teacher: 'Teachers', admin: 'Admins' };
+  const FILTER_LABELS = { all: 'All Users', browse: 'Browse', teacher: 'Teachers', admin: 'Admins' };
+
+  // ── Summary cards shown when roleFilter === 'all' ──
+  const SummaryView = () => {
+    const cards = [
+      { role: 'student',       label: 'Students',        icon: '🎓', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+      { role: 'teacher',       label: 'Teachers',        icon: '👨‍🏫', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
+      { role: 'admin',         label: 'Super Admins',    icon: '🛡️', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
+      { role: 'subAdmin',      label: 'Sub Admins',      icon: '👤', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+      { role: 'semesterAdmin', label: 'Semester Admins', icon: '📋', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
+    ];
+    return (
+      <div>
+        {/* Total banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, var(--primary) 0%, #059669 100%)',
+          borderRadius: 16, padding: '24px 28px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          boxShadow: '0 4px 20px rgba(22,163,74,0.35)',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>
+              Total Registered Users
+            </div>
+            <div style={{ fontSize: 42, fontWeight: 900, color: '#fff', lineHeight: 1 }}>
+              {countLoading ? '—' : roleCounts._total ?? total}
+            </div>
+          </div>
+          <div style={{ fontSize: 52, opacity: 0.6 }}>👥</div>
+        </div>
+
+        {/* Role count cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+          {cards.map(({ role, label, icon, color, bg }) => (
+            <div key={role} style={{
+              background: 'var(--bg)', border: `1px solid var(--border)`,
+              borderLeft: `4px solid ${color}`, borderRadius: 14,
+              padding: '18px 20px', boxShadow: 'var(--shadow)',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+              cursor: 'default',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${color}22`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'var(--shadow)'; }}
+            >
+              <div style={{ fontSize: 28, marginBottom: 10 }}>{icon}</div>
+              <div style={{ fontSize: 32, fontWeight: 900, color, lineHeight: 1, marginBottom: 4 }}>
+                {countLoading ? '…' : (roleCounts[role] ?? 0)}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Browse CTA */}
+        <div style={{
+          background: 'var(--bg)', border: '1px dashed var(--border)', borderRadius: 14,
+          padding: '20px 24px', textAlign: 'center', boxShadow: 'var(--shadow)',
+        }}>
+          <div style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
+            Individual user profiles dekhte "Browse" click koro
+          </div>
+          <button
+            onClick={() => setRoleFilter('browse')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'var(--primary)', color: '#fff',
+              border: 'none', borderRadius: 10, padding: '10px 24px',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 3px 12px rgba(22,163,74,0.35)',
+              fontFamily: 'inherit',
+            }}
+          >
+            Browse All Users →
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="page">
@@ -440,26 +548,43 @@ export default function AdminUsers({
         boxShadow: 'var(--shadow)',
       }}>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', flex: 1 }}>
-          {roleFilters.map(r => (
-            <button
-              key={r}
-              className="pu-filter-btn"
-              onClick={() => setRoleFilter(r)}
-              style={{
-                padding: '6px 16px', borderRadius: 24, fontSize: 12, fontWeight: 700,
-                background: roleFilter === r ? 'var(--primary)' : 'var(--bg3)',
-                color: roleFilter === r ? '#fff' : 'var(--txt2)',
-                boxShadow: roleFilter === r ? '0 2px 10px rgba(22,163,74,0.3)' : 'none',
-                transform: roleFilter === r ? 'scale(1.03)' : 'scale(1)',
-                borderColor: roleFilter === r ? 'var(--primary)' : undefined,
-              }}
-            >
-              {FILTER_LABELS[r] || r}
-            </button>
-          ))}
+          {roleFilters.map(r => {
+            const isActive = roleFilter === r;
+            const countMap = { all: roleCounts._total, browse: null, teacher: roleCounts.teacher, admin: roleCounts.admin };
+            const count = countMap[r] ?? null;
+            const roleColor = { all: '#34d399', browse: '#a78bfa', teacher: '#34d399', admin: '#60a5fa' }[r] || '#94a3b8';
+            return (
+              <button
+                key={r}
+                className="pu-filter-btn"
+                onClick={() => setRoleFilter(r)}
+                style={{
+                  padding: '6px 14px', borderRadius: 24, fontSize: 12, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: isActive ? 'var(--primary)' : 'var(--bg3)',
+                  color: isActive ? '#fff' : 'var(--txt2)',
+                  boxShadow: isActive ? '0 2px 10px rgba(22,163,74,0.3)' : 'none',
+                  transform: isActive ? 'scale(1.03)' : 'scale(1)',
+                  borderColor: isActive ? 'var(--primary)' : undefined,
+                }}
+              >
+                {FILTER_LABELS[r] || r}
+                {count != null && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, lineHeight: 1,
+                    padding: '2px 6px', borderRadius: 20,
+                    background: isActive ? 'rgba(255,255,255,0.25)' : `${roleColor}22`,
+                    color: isActive ? '#fff' : roleColor,
+                  }}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+        {roleFilter !== 'all' && <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt3)', pointerEvents: 'none' }}>
               <Icon name="search" size={14} />
@@ -475,11 +600,11 @@ export default function AdminUsers({
           <button type="submit" className="btn-secondary btn-sm" style={{ borderRadius: 10 }}>
             <Icon name="search" size={14} />
           </button>
-        </form>
+        </form>}
       </div>
 
       {/* ── Content ── */}
-      {loading ? (
+      {roleFilter === 'all' ? <SummaryView /> : loading ? (
         <div className="loading"><div className="spinner" /></div>
       ) : users.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -557,7 +682,7 @@ export default function AdminUsers({
       )}
 
       {/* ── Pagination ── */}
-      {!loading && users.length > 0 && totalPages > 1 && (
+      {roleFilter !== 'all' && !loading && users.length > 0 && totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 18 }}>
           <button
             className="btn-secondary btn-sm"

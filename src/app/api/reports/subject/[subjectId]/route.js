@@ -49,7 +49,7 @@ export async function GET(request, { params }) {
       }
     }
     if (auth.user.role === 'semesterAdmin') {
-      if (subject.departmentId._id.toString() !== auth.user.departmentId?.toString() || subject.shift !== auth.user.shift || subject.semester !== auth.user.semester) {
+      if (subject.departmentId._id.toString() !== auth.user.departmentId?.toString() || subject.shift !== auth.user.shift || !(auth.user.semesters || []).includes(subject.semester)) {
         return errorResponse(new Error('This subject is outside your scope'), 403);
       }
     }
@@ -59,6 +59,10 @@ export async function GET(request, { params }) {
     const studentFilter = {
       role: 'student', departmentId: subject.departmentId._id, semester: subject.semester,
       section: subject.section, isActive: true,
+      // STUDENT PROFILE-FIRST VALIDATION: exclude unregistered shadow
+      // profiles (see User model) — they were never actually part of
+      // this class's real attendance.
+      registered: { $ne: false },
     };
     if (subject.shift) studentFilter.shift = subject.shift;
 
