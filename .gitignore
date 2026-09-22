@@ -3,6 +3,7 @@ node_modules/
 .env.local
 *.log
 .DS_Store
+.env
 
 # SECURITY: README.md currently contains a real secret (TEACHER_SECRET_KEY
 # value) in plaintext. Excluding it from git so it isn't pushed publicly.
