@@ -1,40 +1,45 @@
 {
-  "name": "polyattend-nextjs",
-  "version": "1.0.0",
+  "name": "polyattend",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "seed": "node scripts/seed.js"
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.3",
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/core": "^8.4.3",
-    "axios": "^1.6.2",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.1",
     "exceljs": "^4.4.0",
-    "framer-motion": "^12.42.2",
-    "html5-qrcode": "^2.3.8",
+    "framer-motion": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.0.3",
-    "next": "^16.3.2",
+    "next": "14.2.3",
     "next-pwa": "^5.6.0",
-    "nodemailer": "^9.0.5",
-    "pdfkit": "^0.19.1",
-    "qrcode": "^1.5.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-hot-toast": "^2.4.1"
+    "nodemailer": "^6.9.13",
+    "pg": "^8.23.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hot-toast": "^2.6.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "autoprefixer": "^10.5.0",
-    "eslint": "^10.9.1",
-    "postcss": "^8.5.15",
+    "@types/pg": "^8.23.1",
+    "autoprefixer": "^10.6.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.3",
+    "postcss": "^8.5.28",
+    "prisma": "^7.10.0",
     "tailwindcss": "^3.4.19"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
